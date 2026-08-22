@@ -15,10 +15,14 @@
     <section class="frame" data-frame="1"><img src="../assets/experiences/yellow-lion-onboarding/approved/02-cockpit-pilot-in.png" alt="View from inside the Yellow Lion cockpit in the maintenance hangar"></section>
     <section class="frame" data-frame="2"><img src="../assets/experiences/yellow-lion-onboarding/approved/03-sit.png" alt="Yellow Lion sitting"></section>
     <section class="frame" data-frame="3"><img src="../assets/experiences/yellow-lion-onboarding/approved/04-stand.png" alt="Yellow Lion standing"></section>
-    <section class="frame" data-frame="4"><img src="../assets/experiences/yellow-lion-onboarding/approved/05-wind-up.png" alt="Yellow Lion baring its teeth"></section>
-    <section class="frame" data-frame="5"><img src="../assets/experiences/yellow-lion-onboarding/approved/06-roar.png" alt="Yellow Lion roaring with tremendous force"></section>
-    <section class="frame" data-frame="6"><img src="../assets/experiences/yellow-lion-onboarding/approved/07-splat.png" alt="Yellow Lion collapsed on the ground as people react around it"></section>
-    <section class="frame" data-frame="7"><img src="../assets/experiences/yellow-lion-onboarding/approved/08-hydraulic-failure.png" alt="Yellow Lion cockpit showing an empty hydraulic fluid gauge and warning light"></section>
+    <section class="frame" data-frame="4"><img src="../assets/experiences/yellow-lion-onboarding/approved/05-wind-up.png" alt="Yellow Lion baring its teeth in a mechanical smile"></section>
+    <section class="frame" data-frame="5"><img src="../assets/experiences/yellow-lion-onboarding/approved/09-wind-up.png" alt="Yellow Lion crouched and holding back a powerful roar"></section>
+    <section class="frame" data-frame="6"><img src="../assets/experiences/yellow-lion-onboarding/approved/06-roar.png" alt="Yellow Lion roaring with tremendous force"></section>
+    <section class="frame" data-frame="7"><img src="../assets/experiences/yellow-lion-onboarding/approved/10-roar-shockwave.png" alt="Directional shockwave from Yellow Lion's roar flattening what lies ahead"></section>
+    <section class="frame" data-frame="8"><img src="../assets/experiences/yellow-lion-onboarding/approved/11-critical-systems-failure.png" alt="Yellow Lion cockpit displaying critical systems failure alerts"></section>
+    <section class="frame" data-frame="9"><img src="../assets/experiences/yellow-lion-onboarding/approved/12-post-failure-meow.png" alt="Yellow Lion standing uncertainly after the systems failure"></section>
+    <section class="frame" data-frame="10"><img src="../assets/experiences/yellow-lion-onboarding/approved/07-splat.png" alt="Yellow Lion collapsed on the ground as people react around it"></section>
+    <section class="frame" data-frame="11"><img src="../assets/experiences/yellow-lion-onboarding/approved/08-hydraulic-failure.png" alt="Yellow Lion cockpit showing an empty hydraulic fluid gauge and warning light"></section>
     <div id="question" class="question" aria-label="Question mark">?</div>
   </main>
   <div>
@@ -47,8 +51,12 @@ function render(){
   if(state===2){button('Sit',advance);return}
   if(state===3){button('Stand',advance);return}
   if(state===4){button('Smile',advance);return}
-  if(state===5){button('ROAR',advance);return}
-  if(state===6){button('What happened?',advance);return}
+  if(state===5){button('3... 2... 1...',advance);return}
+  if(state===6){button('ROAR',advance);return}
+  if(state===7){button('Continue',advance);return}
+  if(state===8){button('Continue',advance);return}
+  if(state===9){button('MEOW',advance);return}
+  if(state===10){button('What happened?',advance);return}
   button('Restart Training',()=>{state=0;render()});
 }
 question.addEventListener('click',()=>question.classList.remove('show'));
