@@ -1,0 +1,74 @@
+{
+  "batch": "YL-003",
+  "experience": "Yellow Lion Onboarding",
+  "purpose": "Insert 25 cents token images",
+  "source": "a_clean_studio_style_graphic_layout_on_a_black_ba.png",
+  "assets": [
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/penny.png",
+      "sha256": "ea59fba7c53f340f68292093dad4b630550f2e24b8535ff23df357d61a5bf903",
+      "bytes": 334341,
+      "crop_box": [
+        55,
+        0,
+        490,
+        370
+      ]
+    },
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/nickel.png",
+      "sha256": "cdcfe6e6d0f092d48188dd6e69093613993e73ad8a90827fd13d6b4722377fce",
+      "bytes": 369158,
+      "crop_box": [
+        550,
+        0,
+        990,
+        370
+      ]
+    },
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/dime.png",
+      "sha256": "a882cb69282e9945826825f3313b640655e54d610ffe1003b565319590dca46b",
+      "bytes": 326743,
+      "crop_box": [
+        1050,
+        0,
+        1490,
+        370
+      ]
+    },
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/quarter.png",
+      "sha256": "f28abdfa4db5805fd7b8966e23180035aae2e7c7819a594ffab645febd9ac6ee",
+      "bytes": 461340,
+      "crop_box": [
+        45,
+        445,
+        500,
+        890
+      ]
+    },
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/half-dollar.png",
+      "sha256": "e48588d821808581c42307404dc37fa85f1aea8b29d5c9c90c3b5d4d30e09202",
+      "bytes": 483485,
+      "crop_box": [
+        545,
+        445,
+        1000,
+        890
+      ]
+    },
+    {
+      "filename": "assets/experiences/yellow-lion-onboarding/tokens/manhole-cover.png",
+      "sha256": "e4cbebaf3e4f37eb84815d66675d10da679e97727332219606d8c434a1b1178e",
+      "bytes": 500998,
+      "crop_box": [
+        1035,
+        435,
+        1500,
+        900
+      ]
+    }
+  ]
+}
