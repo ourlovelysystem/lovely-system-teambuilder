@@ -1,0 +1,49 @@
+{
+  "batch": "YL-002",
+  "experience": "Yellow Lion Onboarding",
+  "status": "CLOSED",
+  "asset_policy": "Approved image bytes are immutable; SHA-256 identifies the approved artifact.",
+  "notes": [
+    "MEOW is an application control label, not embedded in the post-failure image.",
+    "Existing SPLAT from YL-001 follows POST-FAILURE / MEOW.",
+    "RETREAT / ATTACK BACKWARD is application logic and requires no image asset."
+  ],
+  "assets": [
+    {
+      "order": 1,
+      "state": "WIND-UP",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/09-wind-up.png",
+      "approval": "APPROVED",
+      "sha256": "33a2c35de3bb8d4c5bf2a2de810aa863bf4755a9068466e0b0d1217e6d9c98ec",
+      "bytes": 2736018,
+      "note": "Caption concept: 3... 2... 1..."
+    },
+    {
+      "order": 2,
+      "state": "ROAR SHOCKWAVE",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/10-roar-shockwave.png",
+      "approval": "APPROVED",
+      "sha256": "a0ddb80f00e490f77ff06127be1cd708268821211e78bb695dc73336451eb654",
+      "bytes": 3005607,
+      "note": "Directional roar shockwave; ROAR visible/suggested in the emanating pattern."
+    },
+    {
+      "order": 3,
+      "state": "CRITICAL SYSTEMS FAILURE",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/11-critical-systems-failure.png",
+      "approval": "APPROVED",
+      "sha256": "69b7994b3e705f045fdd594db47a4521eba361da5c6f3fa67140b663898ef0d6",
+      "bytes": 2580491,
+      "note": "Quadruped Yellow Lion cockpit; ALERT! ALERT! ALERT!"
+    },
+    {
+      "order": 4,
+      "state": "POST-FAILURE / MEOW",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/12-post-failure-meow.png",
+      "approval": "APPROVED",
+      "sha256": "05007ff36a793a86e7b3a74be4c70acff400f4410edeff8f9d6b540b0a5be695",
+      "bytes": 2429637,
+      "note": "Exterior uncertain Yellow Lion; no embedded MEOW text. Application button says MEOW."
+    }
+  ]
+}
