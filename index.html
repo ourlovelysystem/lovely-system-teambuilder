@@ -6,28 +6,31 @@
   <title>Teambuilder — Our Lovely System</title>
   <meta name="description" content="Teambuilder — Our Lovely System">
   <style>
-    :root{--gold:#f4c400;--ink:#f7f7f5;--muted:#c5c7cb;--panel:rgba(0,0,0,.56)}
+    :root{--gold:#f4c400;--ink:#f7f7f5;--muted:#b9bdc4;--glass:rgba(6,7,8,.64)}
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;background:#050607;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
     body{min-height:100vh}
     .hero{position:relative;min-height:100vh;overflow:hidden;background:#050607}
-    .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(90deg,rgba(0,0,0,.9) 0%,rgba(0,0,0,.68) 38%,rgba(0,0,0,.2) 64%,rgba(0,0,0,.08) 100%),url('/assets/ernie-landing-background.png');background-size:cover;background-position:center center;background-repeat:no-repeat;transform:scale(1.01)}
-    .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.12),transparent 35%,rgba(0,0,0,.34) 100%);pointer-events:none}
-    .shell{position:relative;z-index:1;min-height:100vh;width:min(1180px,calc(100% - 40px));margin:0 auto;display:flex;flex-direction:column}
-    header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px 0;color:#fff}
-    .brand{font-weight:900;letter-spacing:.14em;text-transform:uppercase;font-size:14px}.brand span{color:var(--gold)}
-    .domain{font-size:13px;color:#c9c9c9;letter-spacing:.06em}
-    .content{flex:1;display:flex;align-items:center;padding:50px 0 70px}
-    .copy{width:min(650px,58vw);padding:34px 36px 36px;background:linear-gradient(90deg,rgba(0,0,0,.62),rgba(0,0,0,.26),transparent);border-left:3px solid rgba(244,196,0,.78);text-shadow:0 3px 18px #000}
-    .kicker{margin:0 0 14px;color:var(--gold);font-weight:900;letter-spacing:.18em;text-transform:uppercase;font-size:13px}
-    h1{margin:0;font-size:clamp(42px,6.3vw,88px);line-height:.94;letter-spacing:-.055em;max-width:620px}
-    h1 .yes{display:block;color:var(--gold);font-size:1.15em;letter-spacing:.08em;margin-top:14px}
-    .sub{margin:24px 0 0;max-width:560px;color:#d8d8d6;font-size:clamp(16px,1.7vw,21px);line-height:1.45}
-    .enter{display:inline-flex;align-items:center;justify-content:center;margin-top:28px;padding:16px 22px;border:2px solid var(--gold);border-radius:8px;background:rgba(0,0,0,.62);color:var(--gold);font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.08em;box-shadow:0 10px 28px rgba(0,0,0,.38);transition:.16s ease}
-    .enter:hover,.enter:focus{background:var(--gold);color:#121212;transform:translateY(-2px);outline:none}
-    footer{position:relative;z-index:1;padding:18px 0 24px;color:#8f9399;font-size:12px;letter-spacing:.04em}
-    @media(max-width:900px){.hero::before{background-position:62% center}.copy{width:min(720px,72vw)}}
-    @media(max-width:700px){.shell{width:min(100% - 24px,1180px)}header{padding:18px 0}.domain{display:none}.hero::before{background-image:linear-gradient(180deg,rgba(0,0,0,.2) 0%,rgba(0,0,0,.16) 42%,rgba(0,0,0,.82) 72%,rgba(0,0,0,.96) 100%),url('/assets/ernie-landing-background.png');background-position:64% top}.content{align-items:flex-end;padding:42vh 0 38px}.copy{width:100%;padding:24px 18px 26px;background:rgba(0,0,0,.62);border-left:0;border-top:3px solid rgba(244,196,0,.78);backdrop-filter:blur(2px)}h1{font-size:clamp(38px,12vw,62px)}.sub{font-size:16px}.enter{width:100%}}
+    .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(90deg,rgba(0,0,0,.82) 0%,rgba(0,0,0,.56) 34%,rgba(0,0,0,.14) 62%,rgba(0,0,0,.05) 100%),url('/assets/ernie-landing-background.png');background-size:cover;background-position:center 38%;background-repeat:no-repeat}
+    .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.18),transparent 38%,rgba(0,0,0,.42) 100%);pointer-events:none}
+    .shell{position:relative;z-index:1;min-height:100vh;width:min(1080px,calc(100% - 36px));margin:0 auto;display:flex;flex-direction:column}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 0 12px;border-bottom:1px solid rgba(255,255,255,.12)}
+    .brand{font-weight:900;letter-spacing:.12em;text-transform:uppercase;font-size:12px}.brand span{color:var(--gold)}
+    .domain{font-size:11px;color:#aeb2b8;letter-spacing:.05em}
+    .content{flex:1;display:flex;align-items:center;padding:24px 0 40px}
+    .copy{width:min(560px,52vw);padding:26px 28px 28px;background:linear-gradient(90deg,var(--glass),rgba(0,0,0,.26),transparent);border-left:3px solid rgba(244,196,0,.82);text-shadow:0 3px 16px #000}
+    .kicker{margin:0 0 10px;color:var(--gold);font-weight:900;letter-spacing:.16em;text-transform:uppercase;font-size:11px}
+    h1{margin:0;font-size:clamp(34px,4.4vw,62px);line-height:.96;letter-spacing:-.045em;max-width:540px}
+    h1 .yes{display:block;color:var(--gold);font-size:1.08em;letter-spacing:.10em;margin-top:10px}
+    .sub{margin:16px 0 0;max-width:500px;color:#d3d5d8;font-size:clamp(14px,1.25vw,17px);line-height:1.45}
+    .enter{display:inline-flex;align-items:center;justify-content:center;margin-top:20px;padding:12px 18px;border:1px solid var(--gold);border-radius:6px;background:rgba(0,0,0,.7);color:var(--gold);font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.07em;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.36);transition:.16s ease}
+    .enter:hover,.enter:focus{background:var(--gold);color:#111;transform:translateY(-1px);outline:none}
+    .lionline{display:flex;gap:10px;align-items:center;margin-top:20px;color:#9ca0a6;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .lion{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.45);box-shadow:0 0 12px rgba(255,255,255,.12)}
+    .yellow{background:#d7b317}.red{background:#7d1818}.green{background:#1f5b35}.blue{background:#1d456f}
+    footer{position:relative;z-index:1;padding:14px 0 18px;color:#747980;font-size:10px;letter-spacing:.04em}
+    @media(max-width:900px){.hero::before{background-position:62% 38%}.copy{width:min(600px,64vw)}}
+    @media(max-width:700px){.shell{width:min(100% - 22px,1080px)}header{padding:16px 0 10px}.domain{display:none}.hero::before{background-image:linear-gradient(180deg,rgba(0,0,0,.06) 0%,rgba(0,0,0,.12) 44%,rgba(0,0,0,.78) 73%,rgba(0,0,0,.96) 100%),url('/assets/ernie-landing-background.png');background-position:61% top}.content{align-items:flex-end;padding:38vh 0 26px}.copy{width:100%;padding:20px 16px 22px;background:rgba(0,0,0,.62);border-left:0;border-top:3px solid rgba(244,196,0,.8);backdrop-filter:blur(2px)}h1{font-size:clamp(32px,9.5vw,50px)}.sub{font-size:14px}.enter{width:100%;font-size:12px}.lionline{justify-content:center}}
   </style>
 </head>
 <body>
@@ -42,7 +45,13 @@
           <p class="kicker">Yellow Lion Onboarding</p>
           <h1>When someone asks you to pilot a mighty robot lion juggernaut, you say <span class="yes">Y-E-S-!</span></h1>
           <p class="sub">One lion. One pilot. No manual. Get in, strap down, press the button, and find out what happens.</p>
-          <a class="enter" href="/yellow/">Enter Yellow Lion Onboarding Experience</a>
+          <a class="enter" href="/yellow/">Enter Yellow Lion</a>
+          <div class="lionline" aria-label="Four lions accounted for">
+            <span class="lion yellow" title="Yellow Lion"></span>
+            <span class="lion red" title="Red Lion"></span>
+            <span class="lion green" title="Green Lion"></span>
+            <span class="lion blue" title="Blue Lion"></span>
+          </div>
         </div>
       </section>
       <footer>Our Lovely System — Teambuilder</footer>
