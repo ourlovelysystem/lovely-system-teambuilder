@@ -1,0 +1,72 @@
+{
+  "batch": "YL-001",
+  "experience": "Yellow Lion Onboarding",
+  "status": "CLOSED",
+  "asset_policy": "Approved image bytes are immutable; SHA-256 identifies the approved artifact.",
+  "sequence": [
+    {
+      "order": 1,
+      "state": "PARKED",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/01-parked.png",
+      "approval": "APPROVED",
+      "sha256": "bc1d7bb355ccfa48d2a228fe46216178e205cec509c59ebdaff3c53cf586176d",
+      "bytes": 2332129
+    },
+    {
+      "order": 2,
+      "state": "COCKPIT / PILOT IN",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/02-cockpit-pilot-in.png",
+      "approval": "APPROVED",
+      "sha256": "da333b409ce009420b920bb7e741d935ebb805cc756b0f6d0dc7a706c5793271",
+      "bytes": 2643864
+    },
+    {
+      "order": 3,
+      "state": "SIT",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/03-sit.png",
+      "approval": "APPROVED",
+      "sha256": "05e587e7a33e820ca93d7a84322052e56a8108ac14d033fc84653b2096878aa2",
+      "bytes": 2196100
+    },
+    {
+      "order": 4,
+      "state": "STAND",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/04-stand.png",
+      "approval": "APPROVED",
+      "sha256": "43b8b4a1a14bfb9d6aea08ee5f666a1f96f746e5cdcd4b5abb33ceb02f21dc4f",
+      "bytes": 2300403
+    },
+    {
+      "order": 5,
+      "state": "WIND-UP",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/05-wind-up.png",
+      "approval": "APPROVED",
+      "sha256": "0b32b9f12a4ad7f84d6f33ae5a9eec91d0f14f9f8e0cd1119e8d7cc88812b3de",
+      "bytes": 2260892
+    },
+    {
+      "order": 6,
+      "state": "ROAR",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/06-roar.png",
+      "approval": "APPROVED",
+      "sha256": "0ada9693555e7b18e41260cd22a3abb58fa08e76c825bd1cc61432bf674ec6b5",
+      "bytes": 2801270
+    },
+    {
+      "order": 7,
+      "state": "SPLAT",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/07-splat.png",
+      "approval": "APPROVED",
+      "sha256": "c74056473475d1a90669b73170365ebbffb2db0270d9cceb652cf1dac94d19b0",
+      "bytes": 2632712
+    },
+    {
+      "order": 8,
+      "state": "HYDRAULIC FAILURE",
+      "filename": "assets/experiences/yellow-lion-onboarding/approved/08-hydraulic-failure.png",
+      "approval": "APPROVED",
+      "sha256": "9660e21ffb8591252b651d8f1655447cd588f05779acbf1b395a5d229c9fd09b",
+      "bytes": 2432747
+    }
+  ]
+}
