@@ -4,20 +4,49 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Teambuilder — Our Lovely System</title>
+  <meta name="description" content="Teambuilder — Our Lovely System">
   <style>
-    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#050607;color:#fff;font-family:Arial,Helvetica,sans-serif}
-    body{min-height:100vh;display:grid;place-items:center;overflow-x:hidden}
-    .poster{position:relative;width:min(100vw,1024px);min-height:100vh;background:#000}
-    .poster img{display:block;width:100%;height:auto;min-height:100vh;object-fit:cover;object-position:center top}
-    .enter{position:absolute;left:4.5%;bottom:18%;width:43%;min-height:9%;display:flex;align-items:center;justify-content:center;padding:14px 18px;border:2px solid #f5c400;border-radius:8px;background:rgba(0,0,0,.18);color:transparent;text-decoration:none;outline-offset:5px}
-    .enter:focus{outline:3px solid #fff;background:rgba(245,196,0,.12)}
-    @media(max-width:700px){.poster{width:100vw}.poster img{min-height:auto}.enter{bottom:18.4%;width:44%;left:4.4%}}
+    :root{--gold:#f4c400;--ink:#f7f7f5;--muted:#c5c7cb;--panel:rgba(0,0,0,.56)}
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:#050607;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+    body{min-height:100vh}
+    .hero{position:relative;min-height:100vh;overflow:hidden;background:#050607}
+    .hero::before{content:"";position:absolute;inset:0;background-image:linear-gradient(90deg,rgba(0,0,0,.9) 0%,rgba(0,0,0,.68) 38%,rgba(0,0,0,.2) 64%,rgba(0,0,0,.08) 100%),url('/assets/ernie-landing-background.png');background-size:cover;background-position:center center;background-repeat:no-repeat;transform:scale(1.01)}
+    .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.12),transparent 35%,rgba(0,0,0,.34) 100%);pointer-events:none}
+    .shell{position:relative;z-index:1;min-height:100vh;width:min(1180px,calc(100% - 40px));margin:0 auto;display:flex;flex-direction:column}
+    header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:28px 0;color:#fff}
+    .brand{font-weight:900;letter-spacing:.14em;text-transform:uppercase;font-size:14px}.brand span{color:var(--gold)}
+    .domain{font-size:13px;color:#c9c9c9;letter-spacing:.06em}
+    .content{flex:1;display:flex;align-items:center;padding:50px 0 70px}
+    .copy{width:min(650px,58vw);padding:34px 36px 36px;background:linear-gradient(90deg,rgba(0,0,0,.62),rgba(0,0,0,.26),transparent);border-left:3px solid rgba(244,196,0,.78);text-shadow:0 3px 18px #000}
+    .kicker{margin:0 0 14px;color:var(--gold);font-weight:900;letter-spacing:.18em;text-transform:uppercase;font-size:13px}
+    h1{margin:0;font-size:clamp(42px,6.3vw,88px);line-height:.94;letter-spacing:-.055em;max-width:620px}
+    h1 .yes{display:block;color:var(--gold);font-size:1.15em;letter-spacing:.08em;margin-top:14px}
+    .sub{margin:24px 0 0;max-width:560px;color:#d8d8d6;font-size:clamp(16px,1.7vw,21px);line-height:1.45}
+    .enter{display:inline-flex;align-items:center;justify-content:center;margin-top:28px;padding:16px 22px;border:2px solid var(--gold);border-radius:8px;background:rgba(0,0,0,.62);color:var(--gold);font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.08em;box-shadow:0 10px 28px rgba(0,0,0,.38);transition:.16s ease}
+    .enter:hover,.enter:focus{background:var(--gold);color:#121212;transform:translateY(-2px);outline:none}
+    footer{position:relative;z-index:1;padding:18px 0 24px;color:#8f9399;font-size:12px;letter-spacing:.04em}
+    @media(max-width:900px){.hero::before{background-position:62% center}.copy{width:min(720px,72vw)}}
+    @media(max-width:700px){.shell{width:min(100% - 24px,1180px)}header{padding:18px 0}.domain{display:none}.hero::before{background-image:linear-gradient(180deg,rgba(0,0,0,.2) 0%,rgba(0,0,0,.16) 42%,rgba(0,0,0,.82) 72%,rgba(0,0,0,.96) 100%),url('/assets/ernie-landing-background.png');background-position:64% top}.content{align-items:flex-end;padding:42vh 0 38px}.copy{width:100%;padding:24px 18px 26px;background:rgba(0,0,0,.62);border-left:0;border-top:3px solid rgba(244,196,0,.78);backdrop-filter:blur(2px)}h1{font-size:clamp(38px,12vw,62px)}.sub{font-size:16px}.enter{width:100%}}
   </style>
 </head>
 <body>
-  <main class="poster">
-    <img src="/assets/voltron-ghostbuster.jpg" alt="Teambuilder landing poster featuring a Ghostbuster-style pilot with a VOLTRON name tag and the message: When someone asks you to pilot a mighty robot lion juggernaut, you say Y-E-S-!">
-    <a class="enter" href="/yellow/" aria-label="Enter Yellow Lion Onboarding Experience">Enter Yellow Lion Onboarding Experience</a>
+  <main class="hero">
+    <div class="shell">
+      <header>
+        <div class="brand"><span>Teambuilder</span> / Our Lovely System</div>
+        <div class="domain">teambuilder.ourlovelysystem.org</div>
+      </header>
+      <section class="content">
+        <div class="copy">
+          <p class="kicker">Yellow Lion Onboarding</p>
+          <h1>When someone asks you to pilot a mighty robot lion juggernaut, you say <span class="yes">Y-E-S-!</span></h1>
+          <p class="sub">One lion. One pilot. No manual. Get in, strap down, press the button, and find out what happens.</p>
+          <a class="enter" href="/yellow/">Enter Yellow Lion Onboarding Experience</a>
+        </div>
+      </section>
+      <footer>Our Lovely System — Teambuilder</footer>
+    </div>
   </main>
 </body>
 </html>
