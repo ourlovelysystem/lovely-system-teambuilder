@@ -25,6 +25,7 @@
     .sub{margin:16px 0 0;max-width:500px;color:#d3d5d8;font-size:clamp(14px,1.25vw,17px);line-height:1.45}
     .enter{display:inline-flex;align-items:center;justify-content:center;margin-top:20px;padding:12px 18px;border:1px solid var(--gold);border-radius:6px;background:rgba(0,0,0,.7);color:var(--gold);font-weight:900;text-decoration:none;text-transform:uppercase;letter-spacing:.07em;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.36);transition:.16s ease}
     .enter:hover,.enter:focus{background:var(--gold);color:#111;transform:translateY(-1px);outline:none}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}.enter.secondary{border-color:#777;color:#eee}.enter.secondary:hover,.enter.secondary:focus{border-color:var(--gold)}
     .lionline{display:flex;gap:10px;align-items:center;margin-top:20px;color:#9ca0a6;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
     .lion{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.45);box-shadow:0 0 12px rgba(255,255,255,.12)}
     .yellow{background:#d7b317}.red{background:#7d1818}.green{background:#1f5b35}.blue{background:#1d456f}
@@ -45,7 +46,10 @@
           <p class="kicker">Yellow Lion Onboarding</p>
           <h1>When someone asks you to pilot a mighty robot lion juggernaut, you say <span class="yes">Y-E-S-!</span></h1>
           <p class="sub">One lion. One pilot. No manual. Get in, strap down, press the button, and find out what happens.</p>
-          <a class="enter" href="/yellow/">Enter Yellow Lion</a>
+          <div class="actions">
+            <a class="enter" href="/yellow/">Enter Yellow Lion</a>
+            <a class="enter secondary" href="/shooting-gallery/">Enter Shooting Gallery</a>
+          </div>
           <div class="lionline" aria-label="Four lions accounted for">
             <span class="lion yellow" title="Yellow Lion"></span>
             <span class="lion red" title="Red Lion"></span>
