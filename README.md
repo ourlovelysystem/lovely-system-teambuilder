@@ -20,6 +20,18 @@ The participant enters Yellow Lion Training Mode, operates the lion through a sh
 
 The participant controls actions. The system controls sequence.
 
+### Shooting Gallery — first increment
+
+Path: `/shooting-gallery/`
+
+Primitive type: firing mechanism prototype.
+
+The participant points, fires, experiences recoil and provisional three-band shot deviation, and leaves persistent impact evidence on the target. This increment deliberately excludes multiplayer state, moving objects, scoring, Venn Spheres, friendly fire, and networking.
+
+Interaction loop:
+
+> Point. Click. Recoil. Impact. Deformation.
+
 ## Landing page
 
-The root landing page is intentionally a placeholder and links into Yellow Lion Onboarding.
+The root landing page links into Yellow Lion Onboarding and the Shooting Gallery firing prototype.
