@@ -203,12 +203,19 @@ def handle_fire(event, message):
     updated = states.update_item(
         Key={"room_id": ROOM_ID},
         UpdateExpression=(
-            "SET impacts = list_append(if_not_exists(impacts, :empty), :impact), "
-            "sequence = if_not_exists(sequence, :zero) + :one, "
-            "shots = if_not_exists(shots, :zero) + :one, "
-            "directs = if_not_exists(directs, :zero) + :direct, "
-            "total_error = if_not_exists(total_error, :zero) + :error"
+            "SET #impacts = list_append(if_not_exists(#impacts, :empty), :impact), "
+            "#sequence = if_not_exists(#sequence, :zero) + :one, "
+            "#shots = if_not_exists(#shots, :zero) + :one, "
+            "#directs = if_not_exists(#directs, :zero) + :direct, "
+            "#total_error = if_not_exists(#total_error, :zero) + :error"
         ),
+        ExpressionAttributeNames={
+            "#impacts": "impacts",
+            "#sequence": "sequence",
+            "#shots": "shots",
+            "#directs": "directs",
+            "#total_error": "total_error",
+        },
         ExpressionAttributeValues={
             ":empty": [],
             ":impact": [impact],
