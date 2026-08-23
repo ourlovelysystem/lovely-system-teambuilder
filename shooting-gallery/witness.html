@@ -39,6 +39,7 @@
     const websocketUrl=(window.SHOOTING_GALLERY_CONFIG&&window.SHOOTING_GALLERY_CONFIG.websocketUrl)||'';
     const palette=['#f4c400','#58bff3','#ff735f','#72d99b'];
     const names=['ALPHA','BRAVO','CHARLIE','DELTA'];
+    const shotCadenceMs=[650,780,710,860,690,800,740,900,720];
     const clients=names.map((name,index)=>({name,index,id:'witness-'+name.toLowerCase(),socket:null,online:false,generation:0,sequence:0,shots:0,directs:0,meanError:0,impacts:[]}));
     let run=null,trace=[],mediaRecorder=null,mediaChunks=[],videoBlob=null,traceBlob=null;
     const now=()=>performance.now();
@@ -126,7 +127,10 @@
       let shotIndex=0;
       for(let i=0;i<clients.length;i++){
         const client=clients[i],aims=aimsFor(i);run.phase=(i+1)+' / 4 — '+client.name+' VOLLEY';note('volley_started',{client:client.name});
-        for(const aim of aims){localFire(client,aim,shotIndex++);await sleep(220)}
+        for(let aimIndex=0;aimIndex<aims.length;aimIndex++){
+          localFire(client,aims[aimIndex],shotIndex++);
+          if(aimIndex<aims.length-1)await sleep(shotCadenceMs[aimIndex]);
+        }
         await waitFor(()=>clients.every(c=>c.shots===(i+1)*9&&c.sequence===clients[0].sequence),10000,'convergence after '+client.name);note('volley_converged',{client:client.name,shots:(i+1)*9,sequence:clients[0].sequence});
         if(i<clients.length-1){run.phase='INTER-VOLLEY HOLD — 4.000 s';await sleep(4000)}
       }
