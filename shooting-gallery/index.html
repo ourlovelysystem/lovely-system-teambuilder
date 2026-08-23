@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shooting Gallery — Lovely System Teambuilder</title>
+  <meta name="description" content="Point. Click. Recoil. Impact. Persistent evidence.">
+  <style>
+    :root{
+      color-scheme:dark;
+      --gold:#f4c400;
+      --ink:#f7f7f2;
+      --muted:#949aa3;
+      --panel:rgba(7,9,12,.88);
+      --line:rgba(255,255,255,.13);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030405;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+    body{user-select:none;-webkit-user-select:none}
+    .app{height:100%;display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(circle at 50% 42%,#1b2027 0,#090b0e 52%,#020303 100%)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid var(--line);background:rgba(3,4,5,.88);z-index:3}
+    .brand{font-size:11px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}.brand span{color:var(--gold)}
+    .instruction{font-size:12px;color:#b8bdc5;letter-spacing:.06em;text-transform:uppercase}
+    .stage{position:relative;min-height:0;overflow:hidden;cursor:none;touch-action:none}
+    canvas{display:block;width:100%;height:100%}
+    .hud{position:absolute;left:16px;top:16px;display:grid;grid-template-columns:repeat(3,minmax(72px,1fr));gap:8px;width:min(340px,calc(100% - 32px));pointer-events:none}
+    .cell{padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);backdrop-filter:blur(5px)}
+    .label{display:block;color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+    .value{display:block;margin-top:3px;font:800 18px/1 monospace;color:#fff}
+    .impact-report{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);min-width:190px;text-align:center;padding:9px 14px;border:1px solid transparent;border-radius:6px;background:rgba(0,0,0,.64);font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;opacity:0;pointer-events:none}
+    .impact-report.show{animation:report .52s ease-out}
+    .impact-report.direct{color:#fff;border-color:rgba(255,255,255,.52)}
+    .impact-report.mild{color:#ffd85a;border-color:rgba(244,196,0,.5)}
+    .impact-report.severe{color:#ff735f;border-color:rgba(255,74,52,.55)}
+    @keyframes report{0%{opacity:0;transform:translate(-50%,8px) scale(.96)}18%,70%{opacity:1;transform:translate(-50%,0) scale(1)}100%{opacity:0}}
+    .flash{position:absolute;inset:0;background:rgba(255,241,188,.2);opacity:0;pointer-events:none;mix-blend-mode:screen}
+    .flash.fire{animation:muzzle .13s ease-out}
+    @keyframes muzzle{0%{opacity:.75}100%{opacity:0}}
+    footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:#060708;z-index:3}
+    .legend{display:flex;gap:14px;align-items:center;color:#858b94;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+    .legend span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;vertical-align:0;background:currentColor}
+    .legend .direct{color:#e9ecef}.legend .mild{color:#d7b536}.legend .severe{color:#bb5547}
+    button{padding:9px 13px;border:1px solid #5f4d11;border-radius:5px;background:#171307;color:var(--gold);font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;cursor:pointer}
+    button:hover,button:focus{background:var(--gold);color:#111;outline:none}
+    .stage.recoil canvas{animation:recoil .16s cubic-bezier(.2,.8,.2,1)}
+    @keyframes recoil{0%{transform:translate(0,0)}22%{transform:translate(-2px,5px) rotate(-.12deg)}52%{transform:translate(2px,-2px) rotate(.08deg)}100%{transform:translate(0,0)}}
+    @media(max-width:680px){header{padding:10px 12px}.instruction{display:none}.hud{left:10px;top:10px;width:calc(100% - 20px)}footer{padding:9px 10px}.legend{gap:8px;font-size:8px}.impact-report{bottom:14px}}
+    @media(prefers-reduced-motion:reduce){.stage.recoil canvas{animation:none}.impact-report.show{animation-duration:.2s}.flash.fire{animation-duration:.06s}}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand"><span>Shooting Gallery</span> / Teambuilder</div>
+      <div class="instruction">Point. Fire. Draw something the weapon may disagree with.</div>
+    </header>
+
+    <section id="stage" class="stage" aria-label="Shooting gallery target field">
+      <canvas id="field"></canvas>
+      <div class="hud" aria-live="polite">
+        <div class="cell"><span class="label">Shots</span><span id="shotCount" class="value">0</span></div>
+        <div class="cell"><span class="label">Direct</span><span id="directCount" class="value">0</span></div>
+        <div class="cell"><span class="label">Mean error</span><span id="meanError" class="value">0</span></div>
+      </div>
+      <div id="impactReport" class="impact-report">Direct strike</div>
+      <div id="flash" class="flash"></div>
+    </section>
+
+    <footer>
+      <div class="legend" aria-label="Shot deviation legend">
+        <span class="direct">Direct</span>
+        <span class="mild">Mild deviation</span>
+        <span class="severe">Severe deviation</span>
+      </div>
+      <button id="reset" type="button">Replace Target</button>
+    </footer>
+  </main>
+
+  <script>
+    const canvas=document.getElementById('field');
+    const ctx=canvas.getContext('2d');
+    const stage=document.getElementById('stage');
+    const flash=document.getElementById('flash');
+    const report=document.getElementById('impactReport');
+    const shotCount=document.getElementById('shotCount');
+    const directCount=document.getElementById('directCount');
+    const meanError=document.getElementById('meanError');
+    const resetButton=document.getElementById('reset');
+
+    let width=0,height=0,dpr=1;
+    let pointer={x:0,y:0,inside:false};
+    let impacts=[];
+    let shots=0,directs=0,totalError=0;
+    let audioContext=null;
+
+    function resize(){
+      const rect=stage.getBoundingClientRect();
+      dpr=Math.min(window.devicePixelRatio||1,2);
+      width=Math.max(1,rect.width);height=Math.max(1,rect.height);
+      canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+      canvas.style.width=width+'px';canvas.style.height=height+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      if(!pointer.inside){pointer.x=width/2;pointer.y=height/2}
+      draw();
+    }
+
+    function targetGeometry(){
+      const radius=Math.min(width,height)*.37;
+      return {x:width/2,y:height/2,radius:Math.max(110,radius)};
+    }
+
+    function drawBackdrop(){
+      const g=ctx.createRadialGradient(width/2,height*.45,20,width/2,height*.45,Math.max(width,height)*.7);
+      g.addColorStop(0,'#252c34');g.addColorStop(.48,'#11151a');g.addColorStop(1,'#030405');
+      ctx.fillStyle=g;ctx.fillRect(0,0,width,height);
+      ctx.strokeStyle='rgba(255,255,255,.025)';ctx.lineWidth=1;
+      for(let x=0;x<width;x+=34){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke()}
+      for(let y=0;y<height;y+=34){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke()}
+    }
+
+    function drawTarget(){
+      const t=targetGeometry();
+      ctx.save();
+      ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=30;ctx.shadowOffsetY=12;
+      const steel=ctx.createRadialGradient(t.x-t.radius*.28,t.y-t.radius*.32,10,t.x,t.y,t.radius);
+      steel.addColorStop(0,'#899099');steel.addColorStop(.3,'#4f565e');steel.addColorStop(.72,'#272c32');steel.addColorStop(1,'#111419');
+      ctx.fillStyle=steel;ctx.beginPath();ctx.arc(t.x,t.y,t.radius,0,Math.PI*2);ctx.fill();
+      ctx.shadowColor='transparent';
+      ctx.strokeStyle='#a78621';ctx.lineWidth=8;ctx.beginPath();ctx.arc(t.x,t.y,t.radius-4,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=2;
+      [0.33,0.66].forEach(scale=>{ctx.beginPath();ctx.arc(t.x,t.y,t.radius*scale,0,Math.PI*2);ctx.stroke()});
+      ctx.beginPath();ctx.moveTo(t.x-t.radius, t.y);ctx.lineTo(t.x+t.radius,t.y);ctx.moveTo(t.x,t.y-t.radius);ctx.lineTo(t.x,t.y+t.radius);ctx.stroke();
+      ctx.fillStyle='rgba(0,0,0,.34)';ctx.beginPath();ctx.arc(t.x,t.y,13,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+
+    function seeded(index,salt){
+      const value=Math.sin((index+1)*12.9898+salt*78.233)*43758.5453;
+      return value-Math.floor(value);
+    }
+
+    function drawImpact(impact,index){
+      const x=impact.x,y=impact.y,r=impact.radius;
+      ctx.save();
+      ctx.translate(x,y);
+      const crater=ctx.createRadialGradient(-r*.22,-r*.26,1,0,0,r);
+      crater.addColorStop(0,'#050505');crater.addColorStop(.35,'#111214');crater.addColorStop(.62,'#4b3f34');crater.addColorStop(.78,'#17191c');crater.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=crater;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(235,224,190,.38)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(-1,-1,r*.53,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle='rgba(12,12,12,.8)';ctx.lineWidth=1.4;
+      const cracks=4+Math.floor(seeded(index,1)*5);
+      for(let c=0;c<cracks;c++){
+        const angle=seeded(index,c+2)*Math.PI*2;
+        const length=r*(.8+seeded(index,c+12)*1.45);
+        ctx.beginPath();ctx.moveTo(Math.cos(angle)*r*.35,Math.sin(angle)*r*.35);
+        const bend=angle+(seeded(index,c+22)-.5)*.5;
+        ctx.lineTo(Math.cos(bend)*length*.55,Math.sin(bend)*length*.55);
+        ctx.lineTo(Math.cos(angle)*length,Math.sin(angle)*length);ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawReticle(){
+      if(!pointer.inside)return;
+      const {x,y}=pointer;
+      ctx.save();ctx.translate(x,y);
+      ctx.strokeStyle='rgba(244,196,0,.94)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(0,0,17,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-28,0);ctx.lineTo(-8,0);ctx.moveTo(8,0);ctx.lineTo(28,0);ctx.moveTo(0,-28);ctx.lineTo(0,-8);ctx.moveTo(0,8);ctx.lineTo(0,28);ctx.stroke();
+      ctx.fillStyle='#f4c400';ctx.beginPath();ctx.arc(0,0,2.2,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,width,height);drawBackdrop();drawTarget();impacts.forEach(drawImpact);drawReticle();
+    }
+
+    function gaussian(){
+      const u=Math.max(Math.random(),1e-9),v=Math.max(Math.random(),1e-9);
+      return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+    }
+
+    function resolveShot(x,y){
+      const roll=Math.random();
+      let band,distance,angle=Math.random()*Math.PI*2;
+      if(roll<1/3){band='direct';distance=Math.abs(gaussian())*3.2}
+      else if(roll<2/3){band='mild';distance=18+Math.random()*38}
+      else{band='severe';distance=68+Math.random()*118}
+      return {band,x:x+Math.cos(angle)*distance,y:y+Math.sin(angle)*distance,error:distance,radius:12+Math.random()*6};
+    }
+
+    function shotSound(){
+      try{
+        audioContext=audioContext||new (window.AudioContext||window.webkitAudioContext)();
+        const now=audioContext.currentTime;
+        const buffer=audioContext.createBuffer(1,Math.floor(audioContext.sampleRate*.09),audioContext.sampleRate);
+        const data=buffer.getChannelData(0);
+        for(let i=0;i<data.length;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/data.length,3);
+        const source=audioContext.createBufferSource();const gain=audioContext.createGain();
+        source.buffer=buffer;gain.gain.setValueAtTime(.28,now);gain.gain.exponentialRampToValueAtTime(.001,now+.09);
+        source.connect(gain).connect(audioContext.destination);source.start(now);
+      }catch(_){/* Visual firing remains available without audio. */}
+    }
+
+    function animateClass(element,name){element.classList.remove(name);void element.offsetWidth;element.classList.add(name)}
+
+    function fire(x,y){
+      const impact=resolveShot(x,y);impacts.push(impact);shots++;totalError+=impact.error;if(impact.band==='direct')directs++;
+      shotCount.textContent=shots;directCount.textContent=directs;meanError.textContent=Math.round(totalError/shots);
+      report.textContent=impact.band==='direct'?'Direct strike':impact.band==='mild'?'Mild deviation':'Severe deviation';
+      report.className='impact-report '+impact.band;animateClass(report,'show');animateClass(stage,'recoil');animateClass(flash,'fire');
+      shotSound();draw();
+    }
+
+    function locate(event){
+      const rect=canvas.getBoundingClientRect();
+      pointer.x=Math.max(0,Math.min(width,event.clientX-rect.left));pointer.y=Math.max(0,Math.min(height,event.clientY-rect.top));pointer.inside=true;
+    }
+
+    stage.addEventListener('pointermove',event=>{locate(event);draw()});
+    stage.addEventListener('pointerenter',event=>{locate(event);draw()});
+    stage.addEventListener('pointerleave',()=>{pointer.inside=false;draw()});
+    stage.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();locate(event);fire(pointer.x,pointer.y)});
+    resetButton.addEventListener('click',()=>{impacts=[];shots=0;directs=0;totalError=0;shotCount.textContent='0';directCount.textContent='0';meanError.textContent='0';draw()});
+    window.addEventListener('resize',resize);
+    resize();
+  </script>
+</body>
+</html>
