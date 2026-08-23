@@ -103,6 +103,8 @@
     let reconnectDelay=500;
     const websocketUrl=(window.SHOOTING_GALLERY_CONFIG&&window.SHOOTING_GALLERY_CONFIG.websocketUrl)||'';
     const shooterId=(()=>{
+      const demoClient=new URLSearchParams(window.location.search).get('client');
+      if(demoClient&&/^[a-z0-9-]{1,32}$/i.test(demoClient))return 'demo-'+demoClient;
       const key='lovely-shooting-gallery-shooter-id';
       try{
         let value=localStorage.getItem(key);
