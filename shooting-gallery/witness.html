@@ -46,7 +46,14 @@
     function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
     function setStatus(text,state=''){statusEl.textContent=text;statusEl.className='status '+state}
     function send(client,message){if(!client.socket||client.socket.readyState!==WebSocket.OPEN)throw new Error(client.name+' socket is not open');client.socket.send(JSON.stringify(message))}
-    function stateFrom(client,state){client.generation=state.generation||0;client.sequence=state.sequence||0;client.shots=state.shots||0;client.directs=state.directs||0;client.meanError=state.meanError||0;client.impacts=Array.isArray(state.impacts)?state.impacts:client.impacts}
+    function stateFrom(client,state){
+      const generation=Number(state.generation??client.generation),sequence=Number(state.sequence??client.sequence);
+      if(generation<client.generation||(generation===client.generation&&sequence<client.sequence)){
+        note('stale_state_ignored',{client:client.name,incomingGeneration:generation,incomingSequence:sequence,currentGeneration:client.generation,currentSequence:client.sequence});return false;
+      }
+      client.generation=generation;client.sequence=sequence;client.shots=Number(state.shots??client.shots);client.directs=Number(state.directs??client.directs);client.meanError=Number(state.meanError??client.meanError);
+      if(Array.isArray(state.impacts))client.impacts=state.impacts;return true;
+    }
     function connect(client){
       return new Promise((resolve,reject)=>{
         const socket=new WebSocket(websocketUrl);client.socket=socket;
