@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shooting Gallery Witness Mode</title>
+  <style>
+    :root{color-scheme:dark;--gold:#f4c400;--blue:#58bff3;--red:#ff735f;--green:#72d99b}
+    *{box-sizing:border-box}html,body{margin:0;background:#030405;color:#fff;font-family:Arial,sans-serif}
+    body{display:grid;grid-template-rows:auto 1fr auto;min-height:100vh}
+    header,footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 14px;background:#050607;border-color:#252a30;border-style:solid;border-width:0 0 1px}
+    footer{border-width:1px 0 0;flex-wrap:wrap}.brand{font-weight:900;letter-spacing:.12em;text-transform:uppercase}.brand span{color:var(--gold)}
+    .status{font:700 12px monospace;color:#9ea6af}.status.ready{color:var(--green)}.status.bad{color:var(--red)}
+    .surface{display:grid;place-items:center;min-height:0;padding:8px;background:#0a0d11}
+    canvas{display:block;max-width:100%;max-height:calc(100vh - 116px);aspect-ratio:16/9;background:#080b0f;border:1px solid #30363d}
+    button,a.button{border:1px solid #66530f;border-radius:5px;padding:8px 12px;background:#171307;color:var(--gold);font-weight:900;text-transform:uppercase;letter-spacing:.08em;text-decoration:none;font-size:11px;cursor:pointer}
+    button:disabled,a.button.disabled{opacity:.35;pointer-events:none}.controls{display:flex;gap:8px}.hashes{font:10px monospace;color:#858d96;max-width:55vw;overflow-wrap:anywhere}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand"><span>Witness Mode</span> / Four Independent Clients / Continuous Original / Scripted Automated Test</div>
+    <div id="status" class="status">Connecting</div>
+  </header>
+  <main class="surface"><canvas id="witness" width="1920" height="1080" aria-label="Four-client continuous witness canvas"></canvas></main>
+  <footer>
+    <div class="controls">
+      <button id="start" disabled>Run 36-shot witness test</button>
+      <a id="videoDownload" class="button disabled">Download original WebM</a>
+      <a id="traceDownload" class="button disabled">Download trace JSON</a>
+    </div>
+    <div id="hashes" class="hashes">No artifact hashes yet.</div>
+  </footer>
+  <script src="./config.js"></script>
+  <script>
+    const canvas=document.getElementById('witness'),ctx=canvas.getContext('2d');
+    const statusEl=document.getElementById('status'),startButton=document.getElementById('start');
+    const videoDownload=document.getElementById('videoDownload'),traceDownload=document.getElementById('traceDownload'),hashesEl=document.getElementById('hashes');
+    const websocketUrl=(window.SHOOTING_GALLERY_CONFIG&&window.SHOOTING_GALLERY_CONFIG.websocketUrl)||'';
+    const palette=['#f4c400','#58bff3','#ff735f','#72d99b'];
+    const names=['ALPHA','BRAVO','CHARLIE','DELTA'];
+    const clients=names.map((name,index)=>({name,index,id:'witness-'+name.toLowerCase(),socket:null,online:false,generation:0,sequence:0,shots:0,directs:0,meanError:0,impacts:[]}));
+    let run=null,trace=[],mediaRecorder=null,mediaChunks=[],videoBlob=null,traceBlob=null;
+    const now=()=>performance.now();
+    function note(type,data={}){trace.push({type,wallTime:new Date().toISOString(),monotonicMs:Math.round(now()),...data})}
+    function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+    function setStatus(text,state=''){statusEl.textContent=text;statusEl.className='status '+state}
+    function send(client,message){if(!client.socket||client.socket.readyState!==WebSocket.OPEN)throw new Error(client.name+' socket is not open');client.socket.send(JSON.stringify(message))}
+    function stateFrom(client,state){client.generation=state.generation||0;client.sequence=state.sequence||0;client.shots=state.shots||0;client.directs=state.directs||0;client.meanError=state.meanError||0;client.impacts=Array.isArray(state.impacts)?state.impacts:client.impacts}
+    function connect(client){
+      return new Promise((resolve,reject)=>{
+        const socket=new WebSocket(websocketUrl);client.socket=socket;
+        const timer=setTimeout(()=>reject(new Error(client.name+' connection timeout')),12000);
+        socket.addEventListener('open',()=>send(client,{action:'join'}));
+        socket.addEventListener('message',event=>{
+          let message;try{message=JSON.parse(event.data)}catch(_){return}
+          if(message.type==='snapshot'){
+            stateFrom(client,message.state||{});client.online=true;clearTimeout(timer);note('client_snapshot',{client:client.name,sequence:client.sequence,shots:client.shots});resolve();
+          }else if(message.type==='target_replaced'){
+            stateFrom(client,message.state||{});note('target_replaced_received',{client:client.name,generation:client.generation,sequence:client.sequence,shots:client.shots});
+          }else if(message.type==='impact'){
+            const impact=message.impact;if(impact&&!client.impacts.some(item=>item.id===impact.id))client.impacts.push(impact);
+            if(message.state)stateFrom(client,{...message.state,impacts:client.impacts});
+            note('impact_received',{client:client.name,shotId:impact&&impact.id,shooterId:impact&&impact.shooterId,sequence:client.sequence,shots:client.shots});
+          }else if(message.type==='error'){note('server_error',{client:client.name,message:message.message})}
+        });
+        socket.addEventListener('close',()=>{client.online=false;note('client_closed',{client:client.name})});
+        socket.addEventListener('error',()=>note('client_error',{client:client.name}));
+      });
+    }
+    function targetGeometry(panel){const r=Math.min(panel.w,panel.h)*.31;return{x:panel.x+panel.w/2,y:panel.y+panel.h*.56,r}}
+    function panelFor(index){const gutter=8,header=82,w=(1920-gutter)/2,h=(1080-header-gutter)/2;return{x:(index%2)*(w+gutter),y:header+Math.floor(index/2)*(h+gutter),w,h}}
+    function drawImpact(panel,client,impact,index){
+      const x=panel.x+impact.x*panel.w,y=panel.y+impact.y*panel.h,r=Math.max(5,impact.radius*Math.min(panel.w,panel.h));
+      ctx.save();ctx.translate(x,y);ctx.fillStyle='#08090a';ctx.strokeStyle=impact.shooterId===client.id?palette[client.index]:'#67b7e8';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.strokeStyle='rgba(0,0,0,.8)';ctx.lineWidth=1;
+      for(let c=0;c<5;c++){const a=(index*1.77+c*1.21)%6.28;ctx.beginPath();ctx.moveTo(Math.cos(a)*r*.4,Math.sin(a)*r*.4);ctx.lineTo(Math.cos(a)*r*1.7,Math.sin(a)*r*1.7);ctx.stroke()}ctx.restore();
+    }
+    function drawPanel(client){
+      const p=panelFor(client.index),t=targetGeometry(p);ctx.save();ctx.beginPath();ctx.rect(p.x,p.y,p.w,p.h);ctx.clip();
+      const bg=ctx.createRadialGradient(t.x,t.y,20,t.x,t.y,Math.max(p.w,p.h)*.65);bg.addColorStop(0,'#242b33');bg.addColorStop(1,'#05070a');ctx.fillStyle=bg;ctx.fillRect(p.x,p.y,p.w,p.h);
+      ctx.fillStyle='#0a0c10';ctx.strokeStyle='#a78621';ctx.lineWidth=7;ctx.beginPath();ctx.arc(t.x,t.y,t.r,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=2;[.33,.66].forEach(s=>{ctx.beginPath();ctx.arc(t.x,t.y,t.r*s,0,Math.PI*2);ctx.stroke()});
+      ctx.beginPath();ctx.moveTo(t.x-t.r,t.y);ctx.lineTo(t.x+t.r,t.y);ctx.moveTo(t.x,t.y-t.r);ctx.lineTo(t.x,t.y+t.r);ctx.stroke();
+      client.impacts.forEach((impact,index)=>drawImpact(p,client,impact,index));
+      ctx.fillStyle='rgba(0,0,0,.72)';ctx.fillRect(p.x,p.y,p.w,54);ctx.fillStyle=palette[client.index];ctx.font='900 25px Arial';ctx.fillText(client.name,p.x+18,p.y+35);
+      ctx.fillStyle='#fff';ctx.font='700 20px monospace';ctx.fillText('SHOTS '+client.shots+'   SEQ '+client.sequence+'   '+(client.online?'SHARED':'OFFLINE'),p.x+180,p.y+34);ctx.restore();
+    }
+    function render(){
+      ctx.fillStyle='#020304';ctx.fillRect(0,0,1920,1080);ctx.fillStyle='#fff';ctx.font='900 30px Arial';ctx.fillText('LOVELY SYSTEM — CONTINUOUS FOUR-CLIENT WITNESS',24,40);
+      const elapsed=run?((now()-run.startedMonotonic)/1000).toFixed(3):'0.000';ctx.fillStyle='#f4c400';ctx.font='700 26px monospace';ctx.fillText('MONOTONIC '+elapsed+' s',1470,40);
+      ctx.fillStyle='#9aa2ab';ctx.font='700 17px monospace';ctx.fillText((run?run.phase:'READY')+'  /  SCRIPTED AUTOMATED FUNCTIONAL TEST',24,69);clients.forEach(drawPanel);requestAnimationFrame(render);
+    }
+    function hashHex(buffer){return crypto.subtle.digest('SHA-256',buffer).then(hash=>[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join(''))}
+    function seeded(index,salt){const v=Math.sin((index+1)*12.9898+salt*78.233)*43758.5453;return v-Math.floor(v)}
+    function buildImpact(client,aim,index){
+      const bands=['direct','mild','severe'],band=bands[index%3],distance=band==='direct'?3+seeded(index,1)*5:band==='mild'?18+seeded(index,2)*28:48+seeded(index,3)*55,angle=seeded(index,4)*Math.PI*2;
+      return{id:crypto.randomUUID(),shooterId:client.id,band,x:aim[0]+Math.cos(angle)*distance/960,y:aim[1]+Math.sin(angle)*distance/499,error:distance,radius:(12+seeded(index,5)*5)/499};
+    }
+    function localFire(client,aim,index){
+      const impact=buildImpact(client,aim,index);client.impacts.push(impact);client.shots++;if(impact.band==='direct')client.directs++;
+      note('shot_local',{client:client.name,shotId:impact.id,aimX:aim[0],aimY:aim[1],impact});send(client,{action:'fire',impact});return impact;
+    }
+    async function waitFor(predicate,timeout,label){const start=now();while(!predicate()){if(now()-start>timeout)throw new Error('Timeout waiting for '+label);await sleep(25)}}
+    async function startRecording(){
+      mediaChunks=[];const stream=canvas.captureStream(30);const mime=MediaRecorder.isTypeSupported('video/webm;codecs=vp9')?'video/webm;codecs=vp9':'video/webm';mediaRecorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:6000000});
+      mediaRecorder.addEventListener('dataavailable',event=>{if(event.data.size)mediaChunks.push(event.data)});mediaRecorder.start(1000);note('recording_started',{mimeType:mime});
+    }
+    function stopRecording(){return new Promise(resolve=>{mediaRecorder.addEventListener('stop',()=>{videoBlob=new Blob(mediaChunks,{type:mediaRecorder.mimeType});resolve()},{once:true});mediaRecorder.stop()})}
+    function aimsFor(index){
+      const left=index%2===0,top=index<2,xOuter=left?.10:.90,xNear=left?.47:.53,yOuter=top?.12:.88,yNear=top?.47:.53;
+      return[[xOuter,yOuter],[left?.20:.80,top?.20:.80],[left?.32:.68,top?.31:.69],[left?.41:.59,top?.40:.60],[xNear,yNear],[left?.40:.60,top?.38:.62],[left?.30:.70,top?.28:.72],[left?.19:.81,top?.18:.82],[left?.08:.92,top?.10:.90]];
+    }
+    async function runTest(){
+      startButton.disabled=true;videoDownload.classList.add('disabled');traceDownload.classList.add('disabled');trace=[];videoBlob=null;traceBlob=null;
+      run={startedMonotonic:now(),phase:'RECORDING — PRECONDITION'};setStatus('Recording continuous original','ready');await startRecording();await sleep(1000);
+      const previousGeneration=Math.max(...clients.map(c=>c.generation));note('replace_target_sent',{client:'ALPHA',previousGeneration});send(clients[0],{action:'replaceTarget'});
+      await waitFor(()=>clients.every(c=>c.generation>previousGeneration&&c.shots===0),10000,'zero state on all clients');note('zero_state_verified',{generation:clients[0].generation});await sleep(1500);
+      let shotIndex=0;
+      for(let i=0;i<clients.length;i++){
+        const client=clients[i],aims=aimsFor(i);run.phase=(i+1)+' / 4 — '+client.name+' VOLLEY';note('volley_started',{client:client.name});
+        for(const aim of aims){localFire(client,aim,shotIndex++);await sleep(220)}
+        await waitFor(()=>clients.every(c=>c.shots===(i+1)*9&&c.sequence===clients[0].sequence),10000,'convergence after '+client.name);note('volley_converged',{client:client.name,shots:(i+1)*9,sequence:clients[0].sequence});
+        if(i<clients.length-1){run.phase='INTER-VOLLEY HOLD — 4.000 s';await sleep(4000)}
+      }
+      run.phase='FINAL CONVERGENCE — 36 / 36 / 36 / 36';note('final_convergence',{counts:clients.map(c=>c.shots),sequences:clients.map(c=>c.sequence)});await sleep(2500);await stopRecording();note('recording_stopped',{videoBytes:videoBlob.size});
+      const traceDocument={schema:'lovely-system-witness-trace-v1',test:'four-client-36-shot-quadrant-drift',generatedAt:new Date().toISOString(),continuousOriginal:true,clients:clients.map(c=>({name:c.name,id:c.id})),events:trace};
+      traceBlob=new Blob([JSON.stringify(traceDocument,null,2)],{type:'application/json'});const videoBuffer=await videoBlob.arrayBuffer(),traceBuffer=await traceBlob.arrayBuffer();const videoHash=await hashHex(videoBuffer),traceHash=await hashHex(traceBuffer);
+      hashesEl.textContent='VIDEO SHA-256 '+videoHash+' | TRACE SHA-256 '+traceHash;note('hashes_computed',{videoSha256:videoHash,traceSha256:traceHash});
+      const stamp=new Date().toISOString().replace(/[:.]/g,'-');videoDownload.href=URL.createObjectURL(videoBlob);videoDownload.download='lovely-system-witness-'+stamp+'.webm';traceDownload.href=URL.createObjectURL(traceBlob);traceDownload.download='lovely-system-witness-'+stamp+'.json';videoDownload.classList.remove('disabled');traceDownload.classList.remove('disabled');run.phase='PASS — ORIGINALS READY';setStatus('PASS — 36 / 36 / 36 / 36','ready');
+    }
+    startButton.addEventListener('click',()=>runTest().catch(async error=>{note('test_failed',{message:error.message});if(mediaRecorder&&mediaRecorder.state!=='inactive')await stopRecording();run.phase='FAIL — '+error.message;setStatus('FAIL — '+error.message,'bad');startButton.disabled=false}));
+    (async()=>{render();if(!websocketUrl)throw new Error('WebSocket URL is not configured');await Promise.all(clients.map(connect));setStatus('READY — 4 / 4 SHARED','ready');startButton.disabled=false})().catch(error=>setStatus('FAIL — '+error.message,'bad'));
+  </script>
+</body>
+</html>
