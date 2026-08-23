@@ -41,7 +41,7 @@
     footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);background:#060708;z-index:3}
     .legend{display:flex;gap:14px;align-items:center;color:#858b94;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
     .legend span::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;vertical-align:0;background:currentColor}
-    .legend .direct{color:#e9ecef}.legend .mild{color:#d7b536}.legend .severe{color:#bb5547}
+    .legend .direct{color:#e9ecef}.legend .mild{color:#d7b536}.legend .severe{color:#bb5547}.legend .local{color:#f4c400}.legend .remote{color:#67b7e8}
     button{padding:9px 13px;border:1px solid #5f4d11;border-radius:5px;background:#171307;color:var(--gold);font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;cursor:pointer}
     button:hover,button:focus{background:var(--gold);color:#111;outline:none}
     .stage.recoil canvas{animation:recoil .16s cubic-bezier(.2,.8,.2,1)}
@@ -73,6 +73,8 @@
         <span class="direct">Direct</span>
         <span class="mild">Mild deviation</span>
         <span class="severe">Severe deviation</span>
+        <span class="local">Local rim</span>
+        <span class="remote">Remote rim</span>
       </div>
       <button id="reset" type="button">Replace Target</button>
     </footer>
@@ -100,6 +102,14 @@
     let reconnectTimer=null;
     let reconnectDelay=500;
     const websocketUrl=(window.SHOOTING_GALLERY_CONFIG&&window.SHOOTING_GALLERY_CONFIG.websocketUrl)||'';
+    const shooterId=(()=>{
+      const key='lovely-shooting-gallery-shooter-id';
+      try{
+        let value=localStorage.getItem(key);
+        if(!value){value=(crypto.randomUUID&&crypto.randomUUID())||('browser-'+Date.now()+'-'+Math.random());localStorage.setItem(key,value)}
+        return value;
+      }catch(_){return 'browser-'+Date.now()+'-'+Math.random()}
+    })();
 
     function resize(){
       const rect=stage.getBoundingClientRect();
@@ -155,6 +165,9 @@
       const crater=ctx.createRadialGradient(-r*.22,-r*.26,1,0,0,r);
       crater.addColorStop(0,'#050505');crater.addColorStop(.35,'#111214');crater.addColorStop(.62,'#4b3f34');crater.addColorStop(.78,'#17191c');crater.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=crater;ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+      const localOrigin=impact.shooterId===shooterId;
+      ctx.strokeStyle=localOrigin?'rgba(244,196,0,.9)':'rgba(103,183,232,.9)';
+      ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,r*.78,0,Math.PI*2);ctx.stroke();
       ctx.strokeStyle='rgba(235,224,190,.38)';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(-1,-1,r*.53,0,Math.PI*2);ctx.stroke();
       ctx.strokeStyle='rgba(12,12,12,.8)';ctx.lineWidth=1.4;
       const cracks=4+Math.floor(seeded(index,1)*5);
@@ -195,7 +208,8 @@
       else if(roll<2/3){band='mild';distance=18+Math.random()*38}
       else{band='severe';distance=68+Math.random()*118}
       return {
-        id:'local-'+Date.now()+'-'+Math.random(),
+        id:(crypto.randomUUID&&crypto.randomUUID())||('shot-'+Date.now()+'-'+Math.random()),
+        shooterId,
         band,
         x:x+Math.cos(angle)*distance/width,
         y:y+Math.sin(angle)*distance/height,
@@ -227,6 +241,7 @@
     function setCounters(state){
       shots=state.shots||0;
       directs=state.directs||0;
+      totalError=state.totalError===undefined?(state.meanError||0)*shots:state.totalError;
       shotCount.textContent=shots;
       directCount.textContent=directs;
       meanError.textContent=state.meanError||0;
@@ -240,7 +255,11 @@
 
     function applyImpact(message){
       const impact=message.impact;
-      if(!impact||impacts.some(existing=>existing.id===impact.id))return;
+      if(!impact)return;
+      if(impacts.some(existing=>existing.id===impact.id)){
+        setCounters(message.state||{});
+        return;
+      }
       impacts.push(impact);
       setCounters(message.state||{});
       report.textContent=impact.band==='direct'?'Direct strike':impact.band==='mild'?'Mild deviation':'Severe deviation';
@@ -289,19 +308,16 @@
 
     function fire(x,y){
       animateClass(stage,'recoil');animateClass(flash,'fire');shotSound();
-      const aimX=x/width,aimY=y/height;
-      if(websocketUrl){
-        if(!sendShared({action:'fire',aim:{x:aimX,y:aimY},viewport:{width,height}})){
-          report.textContent='Connecting';
-          report.className='impact-report mild';
-          animateClass(report,'show');
-        }
-        return;
-      }
-      const impact=resolveShot(aimX,aimY);impacts.push(impact);shots++;totalError+=impact.error;if(impact.band==='direct')directs++;
-      setCounters({shots,directs,meanError:Math.round(totalError/shots)});
+      const impact=resolveShot(x/width,y/height);
+      impacts.push(impact);shots++;totalError+=impact.error;if(impact.band==='direct')directs++;
+      setCounters({shots,directs,totalError,meanError:Math.round(totalError/shots)});
       report.textContent=impact.band==='direct'?'Direct strike':impact.band==='mild'?'Mild deviation':'Severe deviation';
       report.className='impact-report '+impact.band;animateClass(report,'show');draw();
+      if(websocketUrl&&!sendShared({action:'fire',impact})){
+        report.textContent='Local only — reconnecting';
+        report.className='impact-report mild';
+        animateClass(report,'show');
+      }
     }
 
     function locate(event){

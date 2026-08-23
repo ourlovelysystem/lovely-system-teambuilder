@@ -1,9 +1,7 @@
 import json
 import math
 import os
-import random
 import time
-import uuid
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
@@ -75,6 +73,7 @@ def state_payload(state, include_impacts=True):
         "sequence": native.get("sequence", 0),
         "shots": shots,
         "directs": native.get("directs", 0),
+        "totalError": native.get("total_error", 0),
         "meanError": round(native.get("total_error", 0) / shots) if shots else 0,
     }
     if include_impacts:
@@ -100,36 +99,26 @@ def bounded_number(value, name, low, high):
     return float(value)
 
 
-def resolve_impact(message):
-    aim = message.get("aim") or {}
-    viewport = message.get("viewport") or {}
-    aim_x = bounded_number(aim.get("x"), "aim.x", 0, 1)
-    aim_y = bounded_number(aim.get("y"), "aim.y", 0, 1)
-    viewport_width = bounded_number(viewport.get("width"), "viewport.width", 1, 10000)
-    viewport_height = bounded_number(viewport.get("height"), "viewport.height", 1, 10000)
+def short_string(value, name, maximum=128):
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        raise ValueError(f"{name} must be a non-empty string of at most {maximum} characters")
+    return value
 
-    roll = random.random()
-    angle = random.random() * math.tau
-    if roll < 1 / 3:
-        band = "direct"
-        distance = abs(random.gauss(0, 1)) * 3.2
-    elif roll < 2 / 3:
-        band = "mild"
-        distance = 18 + random.random() * 38
-    else:
-        band = "severe"
-        distance = 68 + random.random() * 118
 
-    radius_pixels = 12 + random.random() * 6
-    impact = {
-        "id": str(uuid.uuid4()),
+def validate_impact(message):
+    supplied = message.get("impact") or {}
+    band = supplied.get("band")
+    if band not in {"direct", "mild", "severe"}:
+        raise ValueError("impact.band must be direct, mild, or severe")
+    return {
+        "id": short_string(supplied.get("id"), "impact.id"),
+        "shooterId": short_string(supplied.get("shooterId"), "impact.shooterId"),
         "band": band,
-        "x": Decimal(str(aim_x + math.cos(angle) * distance / viewport_width)),
-        "y": Decimal(str(aim_y + math.sin(angle) * distance / viewport_height)),
-        "error": Decimal(str(distance)),
-        "radius": Decimal(str(radius_pixels / min(viewport_width, viewport_height))),
+        "x": Decimal(str(bounded_number(supplied.get("x"), "impact.x", -0.5, 1.5))),
+        "y": Decimal(str(bounded_number(supplied.get("y"), "impact.y", -0.5, 1.5))),
+        "error": Decimal(str(bounded_number(supplied.get("error"), "impact.error", 0, 300))),
+        "radius": Decimal(str(bounded_number(supplied.get("radius"), "impact.radius", 0.001, 0.1))),
     }
-    return impact
 
 
 def management_client(event):
@@ -209,7 +198,7 @@ def handle_fire(event, message):
         )
         return response()
 
-    impact = resolve_impact(message)
+    impact = validate_impact(message)
     direct_increment = 1 if impact["band"] == "direct" else 0
     updated = states.update_item(
         Key={"room_id": ROOM_ID},

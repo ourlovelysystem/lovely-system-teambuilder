@@ -37,5 +37,4 @@ Server messages use `{ "type": ... }` and one of these types:
 - `target_replaced`
 - `error`
 
-The firing client supplies normalized aim coordinates and its viewport dimensions. The server resolves deviation, commits the impact, and broadcasts the same normalized result to every connection.
-
+The firing client resolves deviation and renders its crater immediately. It sends the completed normalized impact—not its aim—to the server. The server validates, commits, and broadcasts that result. A stable browser identifier lets each client preserve a durable visual distinction between its own shots and remote shots.
