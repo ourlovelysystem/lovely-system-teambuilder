@@ -44,7 +44,7 @@ Resources:
           FunctionArn: !GetAtt GalleryFunction.Arn
         fire:
           FunctionArn: !GetAtt GalleryFunction.Arn
-        replace_target:
+        replaceTarget:
           FunctionArn: !GetAtt GalleryFunction.Arn
 
   GalleryFunction:

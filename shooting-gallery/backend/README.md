@@ -28,7 +28,7 @@ Client messages use `{ "action": ... }` and one of these actions:
 
 - `join`
 - `fire`
-- `replace_target`
+- `replaceTarget`
 
 Server messages use `{ "type": ... }` and one of these types:
 

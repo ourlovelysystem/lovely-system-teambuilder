@@ -330,7 +330,7 @@
     stage.addEventListener('pointerleave',()=>{pointer.inside=false;draw()});
     stage.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();locate(event);fire(pointer.x,pointer.y)});
     resetButton.addEventListener('click',()=>{
-      if(websocketUrl){sendShared({action:'replace_target'});return}
+      if(websocketUrl){sendShared({action:'replaceTarget'});return}
       impacts=[];shots=0;directs=0;totalError=0;setCounters({shots:0,directs:0,meanError:0});draw();
     });
     window.addEventListener('resize',resize);

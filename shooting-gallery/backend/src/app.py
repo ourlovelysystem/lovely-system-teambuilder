@@ -261,7 +261,7 @@ def lambda_handler(event, _context):
             return handle_join(event)
         if route == "fire":
             return handle_fire(event, message)
-        if route == "replace_target":
+        if route == "replaceTarget":
             return handle_replace(event)
         return handle_default(event)
     except ValueError as error:
