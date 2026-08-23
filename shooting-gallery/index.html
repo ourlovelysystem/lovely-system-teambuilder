@@ -20,7 +20,9 @@
     .app{height:100%;display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(circle at 50% 42%,#1b2027 0,#090b0e 52%,#020303 100%)}
     header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 18px;border-bottom:1px solid var(--line);background:rgba(3,4,5,.88);z-index:3}
     .brand{font-size:11px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}.brand span{color:var(--gold)}
-    .instruction{font-size:12px;color:#b8bdc5;letter-spacing:.06em;text-transform:uppercase}
+    .instruction{display:flex;align-items:center;gap:10px;font-size:12px;color:#b8bdc5;letter-spacing:.06em;text-transform:uppercase}
+    .connection-status{padding:4px 7px;border:1px solid #555;border-radius:999px;color:#aeb4bc;font-size:9px;font-weight:900;letter-spacing:.1em}
+    .connection-status.online{border-color:#2e7d4d;color:#72d99b}.connection-status.connecting{border-color:#8a6d12;color:#e8c94d}.connection-status.offline{border-color:#733b35;color:#df7468}
     .stage{position:relative;min-height:0;overflow:hidden;cursor:none;touch-action:none}
     canvas{display:block;width:100%;height:100%}
     .hud{position:absolute;left:16px;top:16px;display:grid;grid-template-columns:repeat(3,minmax(72px,1fr));gap:8px;width:min(340px,calc(100% - 32px));pointer-events:none}
@@ -52,7 +54,7 @@
   <main class="app">
     <header>
       <div class="brand"><span>Shooting Gallery</span> / Teambuilder</div>
-      <div class="instruction">Point. Fire. Draw something the weapon may disagree with.</div>
+      <div class="instruction"><span>Point. Fire. Draw something the weapon may disagree with.</span><span id="connectionStatus" class="connection-status connecting">Connecting</span></div>
     </header>
 
     <section id="stage" class="stage" aria-label="Shooting gallery target field">
@@ -76,6 +78,7 @@
     </footer>
   </main>
 
+  <script src="./config.js"></script>
   <script>
     const canvas=document.getElementById('field');
     const ctx=canvas.getContext('2d');
@@ -86,12 +89,17 @@
     const directCount=document.getElementById('directCount');
     const meanError=document.getElementById('meanError');
     const resetButton=document.getElementById('reset');
+    const connectionStatus=document.getElementById('connectionStatus');
 
     let width=0,height=0,dpr=1;
     let pointer={x:0,y:0,inside:false};
     let impacts=[];
     let shots=0,directs=0,totalError=0;
     let audioContext=null;
+    let socket=null;
+    let reconnectTimer=null;
+    let reconnectDelay=500;
+    const websocketUrl=(window.SHOOTING_GALLERY_CONFIG&&window.SHOOTING_GALLERY_CONFIG.websocketUrl)||'';
 
     function resize(){
       const rect=stage.getBoundingClientRect();
@@ -140,7 +148,8 @@
     }
 
     function drawImpact(impact,index){
-      const x=impact.x,y=impact.y,r=impact.radius;
+      const scale=Math.min(width,height);
+      const x=impact.x*width,y=impact.y*height,r=impact.radius*scale;
       ctx.save();
       ctx.translate(x,y);
       const crater=ctx.createRadialGradient(-r*.22,-r*.26,1,0,0,r);
@@ -185,7 +194,14 @@
       if(roll<1/3){band='direct';distance=Math.abs(gaussian())*3.2}
       else if(roll<2/3){band='mild';distance=18+Math.random()*38}
       else{band='severe';distance=68+Math.random()*118}
-      return {band,x:x+Math.cos(angle)*distance,y:y+Math.sin(angle)*distance,error:distance,radius:12+Math.random()*6};
+      return {
+        id:'local-'+Date.now()+'-'+Math.random(),
+        band,
+        x:x+Math.cos(angle)*distance/width,
+        y:y+Math.sin(angle)*distance/height,
+        error:distance,
+        radius:(12+Math.random()*6)/Math.min(width,height)
+      };
     }
 
     function shotSound(){
@@ -203,12 +219,89 @@
 
     function animateClass(element,name){element.classList.remove(name);void element.offsetWidth;element.classList.add(name)}
 
-    function fire(x,y){
-      const impact=resolveShot(x,y);impacts.push(impact);shots++;totalError+=impact.error;if(impact.band==='direct')directs++;
-      shotCount.textContent=shots;directCount.textContent=directs;meanError.textContent=Math.round(totalError/shots);
+    function setConnectionStatus(label,state){
+      connectionStatus.textContent=label;
+      connectionStatus.className='connection-status '+state;
+    }
+
+    function setCounters(state){
+      shots=state.shots||0;
+      directs=state.directs||0;
+      shotCount.textContent=shots;
+      directCount.textContent=directs;
+      meanError.textContent=state.meanError||0;
+    }
+
+    function applyState(state){
+      impacts=Array.isArray(state.impacts)?state.impacts:[];
+      setCounters(state);
+      draw();
+    }
+
+    function applyImpact(message){
+      const impact=message.impact;
+      if(!impact||impacts.some(existing=>existing.id===impact.id))return;
+      impacts.push(impact);
+      setCounters(message.state||{});
       report.textContent=impact.band==='direct'?'Direct strike':impact.band==='mild'?'Mild deviation':'Severe deviation';
-      report.className='impact-report '+impact.band;animateClass(report,'show');animateClass(stage,'recoil');animateClass(flash,'fire');
-      shotSound();draw();
+      report.className='impact-report '+impact.band;
+      animateClass(report,'show');
+      draw();
+    }
+
+    function sendShared(message){
+      if(!socket||socket.readyState!==WebSocket.OPEN)return false;
+      socket.send(JSON.stringify(message));
+      return true;
+    }
+
+    function connectSharedGallery(){
+      if(!websocketUrl){
+        setConnectionStatus('Local','offline');
+        return;
+      }
+      clearTimeout(reconnectTimer);
+      setConnectionStatus('Connecting','connecting');
+      socket=new WebSocket(websocketUrl);
+      socket.addEventListener('open',()=>{
+        reconnectDelay=500;
+        setConnectionStatus('Shared','online');
+        sendShared({action:'join'});
+      });
+      socket.addEventListener('message',event=>{
+        let message;
+        try{message=JSON.parse(event.data)}catch(_){return}
+        if(message.type==='snapshot'||message.type==='target_replaced')applyState(message.state||{});
+        else if(message.type==='impact')applyImpact(message);
+        else if(message.type==='error'){
+          report.textContent=message.message||'Server error';
+          report.className='impact-report severe';
+          animateClass(report,'show');
+        }
+      });
+      socket.addEventListener('close',()=>{
+        setConnectionStatus('Reconnecting','connecting');
+        reconnectTimer=setTimeout(connectSharedGallery,reconnectDelay);
+        reconnectDelay=Math.min(reconnectDelay*2,8000);
+      });
+      socket.addEventListener('error',()=>socket.close());
+    }
+
+    function fire(x,y){
+      animateClass(stage,'recoil');animateClass(flash,'fire');shotSound();
+      const aimX=x/width,aimY=y/height;
+      if(websocketUrl){
+        if(!sendShared({action:'fire',aim:{x:aimX,y:aimY},viewport:{width,height}})){
+          report.textContent='Connecting';
+          report.className='impact-report mild';
+          animateClass(report,'show');
+        }
+        return;
+      }
+      const impact=resolveShot(aimX,aimY);impacts.push(impact);shots++;totalError+=impact.error;if(impact.band==='direct')directs++;
+      setCounters({shots,directs,meanError:Math.round(totalError/shots)});
+      report.textContent=impact.band==='direct'?'Direct strike':impact.band==='mild'?'Mild deviation':'Severe deviation';
+      report.className='impact-report '+impact.band;animateClass(report,'show');draw();
     }
 
     function locate(event){
@@ -220,9 +313,13 @@
     stage.addEventListener('pointerenter',event=>{locate(event);draw()});
     stage.addEventListener('pointerleave',()=>{pointer.inside=false;draw()});
     stage.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();locate(event);fire(pointer.x,pointer.y)});
-    resetButton.addEventListener('click',()=>{impacts=[];shots=0;directs=0;totalError=0;shotCount.textContent='0';directCount.textContent='0';meanError.textContent='0';draw()});
+    resetButton.addEventListener('click',()=>{
+      if(websocketUrl){sendShared({action:'replace_target'});return}
+      impacts=[];shots=0;directs=0;totalError=0;setCounters({shots:0,directs:0,meanError:0});draw();
+    });
     window.addEventListener('resize',resize);
     resize();
+    connectSharedGallery();
   </script>
 </body>
 </html>

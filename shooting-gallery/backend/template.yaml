@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Shared authoritative state for the Lovely System Teambuilder shooting gallery.
+
+Parameters:
+  RoomId:
+    Type: String
+    Default: gallery-main
+  MaxImpacts:
+    Type: Number
+    Default: 500
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures:
+      - arm64
+    MemorySize: 256
+    Timeout: 8
+    Tracing: Active
+    Environment:
+      Variables:
+        CONNECTIONS_TABLE: !Ref ConnectionsTable
+        STATE_TABLE: !Ref StateTable
+        ROOM_ID: !Ref RoomId
+        MAX_IMPACTS: !Ref MaxImpacts
+        CONNECTION_TTL_SECONDS: 7200
+
+Resources:
+  SharedGalleryApi:
+    Type: AWS::Serverless::WebSocketApi
+    Properties:
+      Name: lovely-system-shooting-gallery
+      StageName: prod
+      RouteSelectionExpression: $request.body.action
+      Routes:
+        $connect:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        $disconnect:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        $default:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        join:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        fire:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        replace_target:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+
+  GalleryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: lovely-system-shared-shooting-gallery
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StateTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - execute-api:ManageConnections
+              Resource: !Sub arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${SharedGalleryApi}/*/@connections/*
+
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: lovely-system-shooting-gallery-connections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: room_id
+          AttributeType: S
+        - AttributeName: connection_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: room_id
+          KeyType: HASH
+        - AttributeName: connection_id
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
+  StateTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: lovely-system-shooting-gallery-state
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: room_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: room_id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+Outputs:
+  WebSocketUrl:
+    Description: Place this value in shooting-gallery/config.js.
+    Value: !Sub wss://${SharedGalleryApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/prod
