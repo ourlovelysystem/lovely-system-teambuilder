@@ -131,6 +131,7 @@ def validate_pointer(message):
         raise ValueError("pointer.painting must be a boolean")
     return {
         "id": pointer_id,
+        "eventId": short_string(supplied.get("eventId"), "pointer.eventId"),
         "x": bounded_number(supplied.get("x"), "pointer.x", 0, 1),
         "y": bounded_number(supplied.get("y"), "pointer.y", 0, 1),
         "painting": painting,
