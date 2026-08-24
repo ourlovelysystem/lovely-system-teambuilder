@@ -101,8 +101,8 @@
     }
 
     function showPointer(p){
-      if(!COLORS[p.id]||seenEvents.has(p.eventId))return;
-      seenEvents.add(p.eventId);
+      if(!COLORS[p.id]||(p.eventId&&seenEvents.has(p.eventId)))return;
+      if(p.eventId)seenEvents.add(p.eventId);
       if(seenEvents.size>4000){const oldest=seenEvents.values().next().value;seenEvents.delete(oldest)}
       const x=p.x*innerWidth,y=p.y*innerHeight;
       cursorFor(p.id).style.transform=`translate(${x}px,${y}px)`;
