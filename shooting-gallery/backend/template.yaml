@@ -44,6 +44,10 @@ Resources:
           FunctionArn: !GetAtt GalleryFunction.Arn
         fire:
           FunctionArn: !GetAtt GalleryFunction.Arn
+        pointer:
+          FunctionArn: !GetAtt GalleryFunction.Arn
+        clearPaint:
+          FunctionArn: !GetAtt GalleryFunction.Arn
         replaceTarget:
           FunctionArn: !GetAtt GalleryFunction.Arn
 
