@@ -121,6 +121,22 @@ def validate_impact(message):
     }
 
 
+def validate_pointer(message):
+    supplied = message.get("pointer") or {}
+    pointer_id = supplied.get("id")
+    if pointer_id not in {"one", "two", "three", "four", "five"}:
+        raise ValueError("pointer.id must identify one of the five pointers")
+    painting = supplied.get("painting")
+    if not isinstance(painting, bool):
+        raise ValueError("pointer.painting must be a boolean")
+    return {
+        "id": pointer_id,
+        "x": bounded_number(supplied.get("x"), "pointer.x", 0, 1),
+        "y": bounded_number(supplied.get("y"), "pointer.y", 0, 1),
+        "painting": painting,
+    }
+
+
 def management_client(event):
     context = event["requestContext"]
     endpoint = f"https://{context['domainName']}/{context['stage']}"
@@ -245,6 +261,16 @@ def handle_replace(event):
     return response()
 
 
+def handle_pointer(event, message):
+    broadcast(event, {"type": "pointer", "pointer": validate_pointer(message)})
+    return response()
+
+
+def handle_clear_paint(event):
+    broadcast(event, {"type": "paint_cleared"})
+    return response()
+
+
 def handle_default(event):
     connection_id = event["requestContext"]["connectionId"]
     send(
@@ -268,6 +294,10 @@ def lambda_handler(event, _context):
             return handle_join(event)
         if route == "fire":
             return handle_fire(event, message)
+        if route == "pointer":
+            return handle_pointer(event, message)
+        if route == "clearPaint":
+            return handle_clear_paint(event)
         if route == "replaceTarget":
             return handle_replace(event)
         return handle_default(event)
