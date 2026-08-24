@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Five Pointers at Snake Mountain</title>
+  <link rel="stylesheet" href="background.css">
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#050608;color:#f4f4f4}
+    *{box-sizing:border-box}
+    html,body{width:100%;height:100%;margin:0;overflow:hidden}
+    button,a{font:inherit}
+    #chooser{height:100%;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 10%,#243226,#080a0c 55%,#020303)}
+    .panel{width:min(680px,100%);padding:28px;border:1px solid #465047;background:#090c0ddd;box-shadow:0 24px 80px #000;text-align:center}
+    h1{margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;font-size:clamp(25px,5vw,48px)}
+    .sub{margin:0 0 25px;color:#aeb7b0}
+    .roles{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+    .role,.display-link{display:grid;place-items:center;min-height:68px;border:1px solid currentColor;color:var(--c,#d8dfd9);text-decoration:none;background:#070909}
+    .display-link{margin-top:18px;color:#d7ddd8;text-transform:uppercase;letter-spacing:.12em}
+    #stage{position:fixed;inset:0;display:none;background-color:#050608;background-position:center;background-size:cover;background-repeat:no-repeat}
+    #paint{position:absolute;inset:0;width:100%;height:100%}
+    #cursors{position:absolute;inset:0;pointer-events:none}
+    .cursor{position:absolute;width:32px;height:32px;margin:-16px 0 0 -16px;border:3px solid var(--c);border-radius:50%;box-shadow:0 0 8px #000,0 0 18px var(--c);transform:translate(-100px,-100px)}
+    .cursor:before,.cursor:after{content:"";position:absolute;background:var(--c)}
+    .cursor:before{left:13px;top:-10px;width:2px;height:46px}.cursor:after{left:-10px;top:13px;width:46px;height:2px}
+    #hud{position:absolute;left:16px;top:16px;display:flex;gap:10px;align-items:center;padding:9px 12px;background:#050708cc;border:1px solid #39413b;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+    #clear{position:absolute;right:16px;bottom:16px;padding:13px 18px;border:1px solid #d8dfd9;background:#090c0ddd;color:#fff;text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
+    #controller{position:fixed;inset:0;display:none;touch-action:none;user-select:none;background:radial-gradient(circle at 50% 42%,color-mix(in srgb,var(--c) 24%,#080a0c),#050608 62%);cursor:crosshair}
+    #controller .label{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;text-align:center}
+    #controller .disc{width:min(52vw,260px);aspect-ratio:1;border:4px solid var(--c);border-radius:50%;display:grid;place-items:center;box-shadow:0 0 50px color-mix(in srgb,var(--c) 60%,transparent);font-size:clamp(22px,6vw,38px);font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    #controller .hint{position:absolute;bottom:24px;left:16px;right:16px;color:#cad0cb;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+    #controller .dot{position:absolute;width:30px;height:30px;margin:-15px;border:3px solid var(--c);border-radius:50%;pointer-events:none;box-shadow:0 0 20px var(--c)}
+    @media(max-width:620px){.roles{grid-template-columns:repeat(2,1fr)}.roles a:last-child{grid-column:1/-1}.panel{padding:20px}}
+  </style>
+</head>
+<body>
+  <main id="chooser">
+    <section class="panel">
+      <h1>Five Pointers at Snake Mountain</h1>
+      <p class="sub">Choose the common display or one pointing device.</p>
+      <div class="roles">
+        <a class="role" style="--c:#ffcf24" href="?pointer=one">ONE</a>
+        <a class="role" style="--c:#42c7ff" href="?pointer=two">TWO</a>
+        <a class="role" style="--c:#ff5b61" href="?pointer=three">THREE</a>
+        <a class="role" style="--c:#67e56c" href="?pointer=four">FOUR</a>
+        <a class="role" style="--c:#cf70ff" href="?pointer=five">FIVE</a>
+      </div>
+      <a class="display-link" href="?display=1">Open common display</a>
+    </section>
+  </main>
+
+  <main id="stage" aria-label="Common painting display">
+    <canvas id="paint"></canvas>
+    <div id="cursors"></div>
+    <div id="hud"><span id="connection">connecting</span><span>•</span><span>five pointers</span></div>
+    <button id="clear" type="button">Clear paint</button>
+  </main>
+
+  <main id="controller">
+    <div class="label"><div class="disc" id="pointerName"></div><div class="hint">Move to articulate. Press and move to paint.</div></div>
+    <div class="dot" id="localDot"></div>
+  </main>
+
+  <script src="config.js"></script>
+  <script>
+  (() => {
+    const COLORS={one:'#ffcf24',two:'#42c7ff',three:'#ff5b61',four:'#67e56c',five:'#cf70ff'};
+    const params=new URLSearchParams(location.search);
+    const pointerId=params.get('pointer');
+    const display=params.has('display');
+    if(!display && !COLORS[pointerId]) return;
+
+    const chooser=document.querySelector('#chooser');
+    const stage=document.querySelector('#stage');
+    const controller=document.querySelector('#controller');
+    const status=document.querySelector('#connection');
+    chooser.style.display='none';
+
+    const canvas=document.querySelector('#paint');
+    const ctx=canvas.getContext('2d');
+    const cursors={};
+    const previous={};
+
+    function resize(){
+      if(!display)return;
+      const copy=document.createElement('canvas');
+      copy.width=canvas.width;copy.height=canvas.height;
+      copy.getContext('2d').drawImage(canvas,0,0);
+      const dpr=Math.min(devicePixelRatio||1,2);
+      canvas.width=Math.round(innerWidth*dpr);canvas.height=Math.round(innerHeight*dpr);
+      canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      if(copy.width)ctx.drawImage(copy,0,0,copy.width,copy.height,0,0,innerWidth,innerHeight);
+    }
+
+    function cursorFor(id){
+      if(cursors[id])return cursors[id];
+      const node=document.createElement('div');
+      node.className='cursor';node.style.setProperty('--c',COLORS[id]);
+      document.querySelector('#cursors').append(node);cursors[id]=node;return node;
+    }
+
+    function showPointer(p){
+      if(!display||!COLORS[p.id])return;
+      const x=p.x*innerWidth,y=p.y*innerHeight;
+      cursorFor(p.id).style.transform=`translate(${x}px,${y}px)`;
+      const old=previous[p.id];
+      ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=COLORS[p.id];ctx.fillStyle=COLORS[p.id];ctx.lineWidth=7;
+      if(p.painting){
+        if(old&&old.painting){ctx.beginPath();ctx.moveTo(old.x*innerWidth,old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke()}
+        else{ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}
+      }
+      previous[p.id]=p;
+    }
+
+    let socket;
+    function connect(){
+      socket=new WebSocket(window.SNAKE_MOUNTAIN_CONFIG.websocketUrl);
+      socket.addEventListener('open',()=>{if(status)status.textContent='shared';socket.send(JSON.stringify({action:'join'}))});
+      socket.addEventListener('message',event=>{
+        const message=JSON.parse(event.data);
+        if(message.type==='pointer')showPointer(message.pointer);
+        if(message.type==='paint_cleared'&&display){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key])}
+      });
+      socket.addEventListener('close',()=>{if(status)status.textContent='reconnecting';setTimeout(connect,1200)});
+    }
+    function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload))}
+
+    if(display){
+      stage.style.display='block';resize();addEventListener('resize',resize);
+      document.querySelector('#clear').addEventListener('click',()=>send({action:'clearPaint'}));
+    }else{
+      controller.style.display='block';controller.style.setProperty('--c',COLORS[pointerId]);
+      document.querySelector('#pointerName').textContent=`Pointer ${pointerId}`;
+      const dot=document.querySelector('#localDot');
+      let painting=false,lastSent=0,pending=null,frame=0;
+      function transmit(event,force=false){
+        const rect=controller.getBoundingClientRect();
+        const p={id:pointerId,x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height)),painting};
+        dot.style.transform=`translate(${event.clientX}px,${event.clientY}px)`;
+        pending=p;
+        const now=performance.now();
+        if(force||now-lastSent>30){lastSent=now;send({action:'pointer',pointer:p});pending=null;return}
+        if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(pending){lastSent=performance.now();send({action:'pointer',pointer:pending});pending=null}})
+      }
+      controller.addEventListener('pointermove',event=>transmit(event));
+      controller.addEventListener('pointerdown',event=>{painting=true;controller.setPointerCapture(event.pointerId);transmit(event,true)});
+      controller.addEventListener('pointerup',event=>{painting=false;transmit(event,true)});
+      controller.addEventListener('pointercancel',event=>{painting=false;transmit(event,true)});
+    }
+    connect();
+  })();
+  </script>
+  <script src="https://progress.ourlovelysystem.org/lovely-system-alert.js"></script>
+</body>
+</html>
