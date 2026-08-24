@@ -143,5 +143,6 @@
     startButton.addEventListener('click',()=>runTest().catch(async error=>{note('test_failed',{message:error.message});if(mediaRecorder&&mediaRecorder.state!=='inactive')await stopRecording();run.phase='FAIL — '+error.message;setStatus('FAIL — '+error.message,'bad');startButton.disabled=false}));
     (async()=>{render();if(!websocketUrl)throw new Error('WebSocket URL is not configured');await Promise.all(clients.map(connect));setStatus('READY — 4 / 4 SHARED','ready');startButton.disabled=false})().catch(error=>setStatus('FAIL — '+error.message,'bad'));
   </script>
+  <script src="https://progress.ourlovelysystem.org/lovely-system-alert.js"></script>
 </body>
 </html>
