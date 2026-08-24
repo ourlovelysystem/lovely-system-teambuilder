@@ -25,10 +25,10 @@
     .cursor:before{left:13px;top:-10px;width:2px;height:46px}.cursor:after{left:-10px;top:13px;width:46px;height:2px}
     #hud{position:absolute;left:16px;top:16px;display:flex;gap:10px;align-items:center;padding:9px 12px;background:#050708cc;border:1px solid #39413b;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
     #clear{position:absolute;right:16px;bottom:16px;padding:13px 18px;border:1px solid #d8dfd9;background:#090c0ddd;color:#fff;text-transform:uppercase;letter-spacing:.1em;cursor:pointer}
-    #controller{position:fixed;inset:0;display:none;touch-action:none;user-select:none;background:radial-gradient(circle at 50% 42%,color-mix(in srgb,var(--c) 24%,#080a0c),#050608 62%);cursor:crosshair}
-    #controller .label{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;text-align:center}
-    #controller .disc{width:min(52vw,260px);aspect-ratio:1;border:4px solid var(--c);border-radius:50%;display:grid;place-items:center;box-shadow:0 0 50px color-mix(in srgb,var(--c) 60%,transparent);font-size:clamp(22px,6vw,38px);font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-    #controller .hint{position:absolute;bottom:24px;left:16px;right:16px;color:#cad0cb;text-transform:uppercase;letter-spacing:.08em;font-size:12px}
+    #controller{position:fixed;inset:0;z-index:5;display:none;touch-action:none;user-select:none;cursor:crosshair}
+    #controller .label{position:absolute;right:16px;top:16px;pointer-events:none;text-align:right}
+    #controller .disc{display:inline-grid;place-items:center;padding:10px 14px;border:2px solid var(--c);background:#050708cc;box-shadow:0 0 22px color-mix(in srgb,var(--c) 45%,transparent);font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    #controller .hint{margin-top:7px;color:#e0e5e1;text-shadow:0 1px 4px #000;text-transform:uppercase;letter-spacing:.08em;font-size:10px}
     #controller .dot{position:absolute;width:30px;height:30px;margin:-15px;border:3px solid var(--c);border-radius:50%;pointer-events:none;box-shadow:0 0 20px var(--c)}
     @media(max-width:620px){.roles{grid-template-columns:repeat(2,1fr)}.roles a:last-child{grid-column:1/-1}.panel{padding:20px}}
   </style>
@@ -80,9 +80,9 @@
     const ctx=canvas.getContext('2d');
     const cursors={};
     const previous={};
+    const seenEvents=new Set();
 
     function resize(){
-      if(!display)return;
       const copy=document.createElement('canvas');
       copy.width=canvas.width;copy.height=canvas.height;
       copy.getContext('2d').drawImage(canvas,0,0);
@@ -101,7 +101,9 @@
     }
 
     function showPointer(p){
-      if(!display||!COLORS[p.id])return;
+      if(!COLORS[p.id]||seenEvents.has(p.eventId))return;
+      seenEvents.add(p.eventId);
+      if(seenEvents.size>4000){const oldest=seenEvents.values().next().value;seenEvents.delete(oldest)}
       const x=p.x*innerWidth,y=p.y*innerHeight;
       cursorFor(p.id).style.transform=`translate(${x}px,${y}px)`;
       const old=previous[p.id];
@@ -120,28 +122,35 @@
       socket.addEventListener('message',event=>{
         const message=JSON.parse(event.data);
         if(message.type==='pointer')showPointer(message.pointer);
-        if(message.type==='paint_cleared'&&display){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key])}
+        if(message.type==='paint_cleared'){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key]);seenEvents.clear()}
       });
       socket.addEventListener('close',()=>{if(status)status.textContent='reconnecting';setTimeout(connect,1200)});
     }
     function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload))}
 
+    stage.style.display='block';resize();addEventListener('resize',resize);
     if(display){
-      stage.style.display='block';resize();addEventListener('resize',resize);
       document.querySelector('#clear').addEventListener('click',()=>send({action:'clearPaint'}));
     }else{
+      document.querySelector('#clear').style.display='none';
       controller.style.display='block';controller.style.setProperty('--c',COLORS[pointerId]);
       document.querySelector('#pointerName').textContent=`Pointer ${pointerId}`;
       const dot=document.querySelector('#localDot');
-      let painting=false,lastSent=0,pending=null,frame=0;
+      let painting=false,lastSent=0,pending=null,frame=0,counter=0;
+      const clientId=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));
+      function sendPointer(p){
+        p.eventId=`${clientId}:${++counter}`;
+        showPointer(p);
+        send({action:'pointer',pointer:p});
+      }
       function transmit(event,force=false){
         const rect=controller.getBoundingClientRect();
         const p={id:pointerId,x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height)),painting};
         dot.style.transform=`translate(${event.clientX}px,${event.clientY}px)`;
         pending=p;
         const now=performance.now();
-        if(force||now-lastSent>30){lastSent=now;send({action:'pointer',pointer:p});pending=null;return}
-        if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(pending){lastSent=performance.now();send({action:'pointer',pointer:pending});pending=null}})
+        if(force||now-lastSent>30){lastSent=now;sendPointer(p);pending=null;return}
+        if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(pending){lastSent=performance.now();sendPointer(pending);pending=null}})
       }
       controller.addEventListener('pointermove',event=>transmit(event));
       controller.addEventListener('pointerdown',event=>{painting=true;controller.setPointerCapture(event.pointerId);transmit(event,true)});
