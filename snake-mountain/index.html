@@ -80,6 +80,7 @@
     const ctx=canvas.getContext('2d');
     const cursors={};
     const previous={};
+    const remotePaths={};
     const seenEvents=new Set();
 
     function resize(){
@@ -100,17 +101,40 @@
       document.querySelector('#cursors').append(node);cursors[id]=node;return node;
     }
 
-    function showPointer(p){
+    function drawRemoteStroke(p,old,x,y){
+      const path=remotePaths[p.id]||(remotePaths[p.id]={midpoint:null});
+      if(!old||!old.painting){
+        ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill();
+        path.midpoint={x,y};
+        return;
+      }
+      const oldX=old.x*innerWidth,oldY=old.y*innerHeight;
+      const midpoint={x:(oldX+x)/2,y:(oldY+y)/2};
+      ctx.beginPath();
+      ctx.moveTo(path.midpoint?.x??oldX,path.midpoint?.y??oldY);
+      ctx.quadraticCurveTo(oldX,oldY,midpoint.x,midpoint.y);
+      ctx.stroke();
+      path.midpoint=midpoint;
+    }
+
+    function showPointer(p,local=false){
       if(!COLORS[p.id]||(p.eventId&&seenEvents.has(p.eventId)))return;
       if(p.eventId)seenEvents.add(p.eventId);
       if(seenEvents.size>4000){const oldest=seenEvents.values().next().value;seenEvents.delete(oldest)}
       const x=p.x*innerWidth,y=p.y*innerHeight;
-      cursorFor(p.id).style.transform=`translate(${x}px,${y}px)`;
+      const cursor=cursorFor(p.id);
+      cursor.style.transition=local?'none':'transform 45ms linear';
+      cursor.style.transform=`translate(${x}px,${y}px)`;
       const old=previous[p.id];
       ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=COLORS[p.id];ctx.fillStyle=COLORS[p.id];ctx.lineWidth=7;
       if(p.painting){
-        if(old&&old.painting){ctx.beginPath();ctx.moveTo(old.x*innerWidth,old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke()}
+        if(local&&old&&old.painting){ctx.beginPath();ctx.moveTo(old.x*innerWidth,old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke()}
+        else if(!local){drawRemoteStroke(p,old,x,y)}
         else{ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}
+      }else if(!local&&old&&old.painting){
+        const path=remotePaths[p.id];
+        ctx.beginPath();ctx.moveTo(path?.midpoint?.x??old.x*innerWidth,path?.midpoint?.y??old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke();
+        delete remotePaths[p.id];
       }
       previous[p.id]=p;
     }
@@ -122,7 +146,7 @@
       socket.addEventListener('message',event=>{
         const message=JSON.parse(event.data);
         if(message.type==='pointer')showPointer(message.pointer);
-        if(message.type==='paint_cleared'){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key]);seenEvents.clear()}
+        if(message.type==='paint_cleared'){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key]);Object.keys(remotePaths).forEach(key=>delete remotePaths[key]);seenEvents.clear()}
       });
       socket.addEventListener('close',()=>{if(status)status.textContent='reconnecting';setTimeout(connect,1200)});
     }
@@ -140,7 +164,7 @@
       const clientId=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));
       function sendPointer(p){
         p.eventId=`${clientId}:${++counter}`;
-        showPointer(p);
+        showPointer(p,true);
         send({action:'pointer',pointer:p});
       }
       function transmit(event,force=false){
