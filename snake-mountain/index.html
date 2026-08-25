@@ -133,7 +133,12 @@
       let pending=false;
       Object.entries(remoteQueues).forEach(([id,queue])=>{
         const clock=remoteClocks[id];
-        while(queue.length&&queue[0].clientTime+clock.offset<=now)showPointer(queue.shift());
+        while(queue.length&&queue[0].clientTime+clock.offset<=now){
+          const sample=queue.shift();
+          if(sample.sequence<=clock.renderedSequence)continue;
+          showPointer(sample);
+          clock.renderedSequence=sample.sequence;
+        }
         if(queue.length)pending=true;
       });
       if(pending)remoteFrame=requestAnimationFrame(pumpRemote);
@@ -146,14 +151,14 @@
       const candidateOffset=now+REMOTE_BUFFER_MS-last.clientTime;
       const source=batched?eventId.slice(0,eventId.lastIndexOf(':')):null;
       if(batched&&remoteClocks[id]?.source!==source){remoteQueues[id]=[];delete remoteClocks[id]}
-      const clock=remoteClocks[id]||(remoteClocks[id]={offset:candidateOffset,lastSequence:-1,source});
+      const clock=remoteClocks[id]||(remoteClocks[id]={offset:candidateOffset,renderedSequence:-1,source});
       clock.offset=Math.min(clock.offset,candidateOffset);
       const queue=remoteQueues[id]||(remoteQueues[id]=[]);
       samples.forEach(sample=>{
-        if(sample.sequence<=clock.lastSequence)return;
-        clock.lastSequence=sample.sequence;
+        if(sample.sequence<=clock.renderedSequence||queue.some(queued=>queued.sequence===sample.sequence))return;
         queue.push({...sample,id});
       });
+      queue.sort((a,b)=>a.sequence-b.sequence);
       if(!remoteFrame)remoteFrame=requestAnimationFrame(pumpRemote);
     }
 
