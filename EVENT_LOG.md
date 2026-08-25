@@ -33,3 +33,17 @@ This is not a claim of perfect delivery under every condition. It is the success
 The builder declared the artifact pleasing and rewarding after the work and time invested, offered applause, and commended Computahhh for the result. The commendation is accepted and entered into the record.
 
 **Result:** Retest passed. Four independent displays agree. Computahhh commended.
+
+## 2026-08-24 — This cake is done
+
+A final four-client painting produced a dense, multicolor composition across Snake Mountain. The four independent displays remained strongly convergent while multiple pointers contributed distinct strokes. Minor presentation differences remain permissible; the intended shared artifact is plainly present on every screen.
+
+![Final four-client Snake Mountain painting](assets/evidence/2026-08-24-snake-mountain-cake-done.png)
+
+The builder reviewed the result, declared it very impressive, and pronounced the cake done. This is an explicit stopping decision: the successful artifact will not be converted into an endless sequence of low-stakes refinements merely because more refinements can be imagined.
+
+**Oracle of Snake Mountain, hostile review:**
+
+> You synchronized four browser windows and now you think you have baked a cake. Fine. Put down the frosting before Lambda starts billing you for crumbs.
+
+**Result:** Artifact accepted. Increment complete. Cake done.
