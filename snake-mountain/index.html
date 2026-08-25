@@ -80,8 +80,10 @@
     const ctx=canvas.getContext('2d');
     const cursors={};
     const previous={};
-    const remotePaths={};
+    const remoteQueues={};
+    const remoteClocks={};
     const seenEvents=new Set();
+    const REMOTE_BUFFER_MS=45;
 
     function resize(){
       const copy=document.createElement('canvas');
@@ -101,42 +103,58 @@
       document.querySelector('#cursors').append(node);cursors[id]=node;return node;
     }
 
-    function drawRemoteStroke(p,old,x,y){
-      const path=remotePaths[p.id]||(remotePaths[p.id]={midpoint:null});
-      if(!old||!old.painting){
-        ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill();
-        path.midpoint={x,y};
-        return;
-      }
-      const oldX=old.x*innerWidth,oldY=old.y*innerHeight;
-      const midpoint={x:(oldX+x)/2,y:(oldY+y)/2};
-      ctx.beginPath();
-      ctx.moveTo(path.midpoint?.x??oldX,path.midpoint?.y??oldY);
-      ctx.quadraticCurveTo(oldX,oldY,midpoint.x,midpoint.y);
-      ctx.stroke();
-      path.midpoint=midpoint;
+    function rememberEvent(eventId){
+      if(!eventId)return true;
+      if(seenEvents.has(eventId))return false;
+      seenEvents.add(eventId);
+      if(seenEvents.size>4000){const oldest=seenEvents.values().next().value;seenEvents.delete(oldest)}
+      return true;
     }
 
     function showPointer(p,local=false){
-      if(!COLORS[p.id]||(p.eventId&&seenEvents.has(p.eventId)))return;
-      if(p.eventId)seenEvents.add(p.eventId);
-      if(seenEvents.size>4000){const oldest=seenEvents.values().next().value;seenEvents.delete(oldest)}
+      if(!COLORS[p.id])return;
       const x=p.x*innerWidth,y=p.y*innerHeight;
       const cursor=cursorFor(p.id);
-      cursor.style.transition=local?'none':'transform 45ms linear';
+      cursor.style.transition='none';
       cursor.style.transform=`translate(${x}px,${y}px)`;
       const old=previous[p.id];
       ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle=COLORS[p.id];ctx.fillStyle=COLORS[p.id];ctx.lineWidth=7;
       if(p.painting){
-        if(local&&old&&old.painting){ctx.beginPath();ctx.moveTo(old.x*innerWidth,old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke()}
-        else if(!local){drawRemoteStroke(p,old,x,y)}
+        if(old&&old.painting){ctx.beginPath();ctx.moveTo(old.x*innerWidth,old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke()}
         else{ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill()}
-      }else if(!local&&old&&old.painting){
-        const path=remotePaths[p.id];
-        ctx.beginPath();ctx.moveTo(path?.midpoint?.x??old.x*innerWidth,path?.midpoint?.y??old.y*innerHeight);ctx.lineTo(x,y);ctx.stroke();
-        delete remotePaths[p.id];
       }
       previous[p.id]=p;
+    }
+
+    let remoteFrame=0;
+    function pumpRemote(){
+      remoteFrame=0;
+      const now=performance.now();
+      let pending=false;
+      Object.entries(remoteQueues).forEach(([id,queue])=>{
+        const clock=remoteClocks[id];
+        while(queue.length&&queue[0].clientTime+clock.offset<=now)showPointer(queue.shift());
+        if(queue.length)pending=true;
+      });
+      if(pending)remoteFrame=requestAnimationFrame(pumpRemote);
+    }
+
+    function enqueueRemote(id,eventId,samples,batched=false){
+      if(!COLORS[id]||!rememberEvent(eventId)||!samples.length)return;
+      const now=performance.now();
+      const last=samples[samples.length-1];
+      const candidateOffset=now+REMOTE_BUFFER_MS-last.clientTime;
+      const source=batched?eventId.slice(0,eventId.lastIndexOf(':')):null;
+      if(batched&&remoteClocks[id]?.source!==source){remoteQueues[id]=[];delete remoteClocks[id]}
+      const clock=remoteClocks[id]||(remoteClocks[id]={offset:candidateOffset,lastSequence:-1,source});
+      clock.offset=Math.min(clock.offset,candidateOffset);
+      const queue=remoteQueues[id]||(remoteQueues[id]=[]);
+      samples.forEach(sample=>{
+        if(sample.sequence<=clock.lastSequence)return;
+        clock.lastSequence=sample.sequence;
+        queue.push({...sample,id});
+      });
+      if(!remoteFrame)remoteFrame=requestAnimationFrame(pumpRemote);
     }
 
     let socket;
@@ -145,13 +163,25 @@
       socket.addEventListener('open',()=>{if(status)status.textContent='shared';socket.send(JSON.stringify({action:'join'}))});
       socket.addEventListener('message',event=>{
         const message=JSON.parse(event.data);
-        if(message.type==='pointer')showPointer(message.pointer);
-        if(message.type==='paint_cleared'){ctx.clearRect(0,0,innerWidth,innerHeight);Object.keys(previous).forEach(key=>delete previous[key]);Object.keys(remotePaths).forEach(key=>delete remotePaths[key]);seenEvents.clear()}
+        if(message.type==='snapshot')batchSupported=message.capabilities?.pointerBatches===true;
+        if(message.type==='pointer'){
+          const p=message.pointer;
+          enqueueRemote(p.id,p.eventId,[{x:p.x,y:p.y,painting:p.painting,sequence:legacySequence++,clientTime:performance.now()}]);
+        }
+        if(message.type==='pointer_batch')enqueueRemote(message.pointer.id,message.pointer.eventId,message.pointer.samples,true);
+        if(message.type==='paint_cleared'){
+          ctx.clearRect(0,0,innerWidth,innerHeight);
+          Object.keys(previous).forEach(key=>delete previous[key]);
+          Object.keys(remoteQueues).forEach(key=>delete remoteQueues[key]);
+          Object.keys(remoteClocks).forEach(key=>delete remoteClocks[key]);
+          seenEvents.clear();
+        }
       });
       socket.addEventListener('close',()=>{if(status)status.textContent='reconnecting';setTimeout(connect,1200)});
     }
     function send(payload){if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify(payload))}
 
+    let batchSupported=false,legacySequence=0;
     stage.style.display='block';resize();addEventListener('resize',resize);
     if(display){
       document.querySelector('#clear').addEventListener('click',()=>send({action:'clearPaint'}));
@@ -160,26 +190,42 @@
       controller.style.display='block';controller.style.setProperty('--c',COLORS[pointerId]);
       document.querySelector('#pointerName').textContent=`Pointer ${pointerId}`;
       const dot=document.querySelector('#localDot');
-      let painting=false,lastSent=0,pending=null,frame=0,counter=0;
+      let painting=false,lastSent=0,flushTimer=0,counter=0,sequence=0,pendingSamples=[];
       const clientId=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));
-      function sendPointer(p){
-        p.eventId=`${clientId}:${++counter}`;
-        showPointer(p,true);
-        send({action:'pointer',pointer:p});
+      function flushSamples(){
+        flushTimer=0;
+        if(!pendingSamples.length)return;
+        const samples=pendingSamples.splice(0,64);
+        const eventId=`${clientId}:${++counter}`;
+        if(batchSupported){
+          rememberEvent(eventId);
+          send({action:'pointer',pointer:{id:pointerId,eventId,samples}});
+        }else samples.forEach(sample=>{
+          const singleEventId=`${eventId}:${sample.sequence}`;
+          rememberEvent(singleEventId);
+          send({action:'pointer',pointer:{id:pointerId,eventId:singleEventId,x:sample.x,y:sample.y,painting:sample.painting}});
+        });
+        lastSent=performance.now();
+        if(pendingSamples.length)flushTimer=setTimeout(flushSamples,0);
       }
-      function transmit(event,force=false){
+      function capture(event,force=false){
         const rect=controller.getBoundingClientRect();
-        const p={id:pointerId,x:Math.max(0,Math.min(1,(event.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(event.clientY-rect.top)/rect.height)),painting};
+        const events=event.getCoalescedEvents?.()||[event];
+        events.forEach(raw=>{
+          const eventTime=Math.abs(raw.timeStamp-performance.now())<60000?raw.timeStamp:performance.now();
+          const sample={x:Math.max(0,Math.min(1,(raw.clientX-rect.left)/rect.width)),y:Math.max(0,Math.min(1,(raw.clientY-rect.top)/rect.height)),painting,sequence:sequence++,clientTime:eventTime};
+          pendingSamples.push(sample);
+          showPointer({...sample,id:pointerId},true);
+        });
         dot.style.transform=`translate(${event.clientX}px,${event.clientY}px)`;
-        pending=p;
         const now=performance.now();
-        if(force||now-lastSent>30){lastSent=now;sendPointer(p);pending=null;return}
-        if(!frame)frame=requestAnimationFrame(()=>{frame=0;if(pending){lastSent=performance.now();sendPointer(pending);pending=null}})
+        if(force||now-lastSent>30){flushSamples();return}
+        if(!flushTimer)flushTimer=setTimeout(flushSamples,Math.max(0,30-(now-lastSent)));
       }
-      controller.addEventListener('pointermove',event=>transmit(event));
-      controller.addEventListener('pointerdown',event=>{painting=true;controller.setPointerCapture(event.pointerId);transmit(event,true)});
-      controller.addEventListener('pointerup',event=>{painting=false;transmit(event,true)});
-      controller.addEventListener('pointercancel',event=>{painting=false;transmit(event,true)});
+      controller.addEventListener('pointermove',event=>capture(event));
+      controller.addEventListener('pointerdown',event=>{painting=true;controller.setPointerCapture(event.pointerId);capture(event,true)});
+      controller.addEventListener('pointerup',event=>{painting=false;capture(event,true)});
+      controller.addEventListener('pointercancel',event=>{painting=false;capture(event,true)});
     }
     connect();
   })();
