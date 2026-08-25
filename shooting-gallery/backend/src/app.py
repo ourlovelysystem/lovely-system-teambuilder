@@ -138,6 +138,45 @@ def validate_pointer(message):
     }
 
 
+def validate_pointer_batch(message):
+    supplied = message.get("pointer") or {}
+    pointer_id = supplied.get("id")
+    if pointer_id not in {"one", "two", "three", "four", "five"}:
+        raise ValueError("pointer.id must identify one of the five pointers")
+    samples = supplied.get("samples")
+    if not isinstance(samples, list) or not 1 <= len(samples) <= 64:
+        raise ValueError("pointer.samples must contain between 1 and 64 samples")
+
+    validated = []
+    for index, sample in enumerate(samples):
+        if not isinstance(sample, dict):
+            raise ValueError(f"pointer.samples[{index}] must be an object")
+        painting = sample.get("painting")
+        if not isinstance(painting, bool):
+            raise ValueError(f"pointer.samples[{index}].painting must be a boolean")
+        sequence = sample.get("sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 0:
+            raise ValueError(f"pointer.samples[{index}].sequence must be a nonnegative integer")
+        validated.append({
+            "x": bounded_number(sample.get("x"), f"pointer.samples[{index}].x", 0, 1),
+            "y": bounded_number(sample.get("y"), f"pointer.samples[{index}].y", 0, 1),
+            "painting": painting,
+            "sequence": sequence,
+            "clientTime": bounded_number(
+                sample.get("clientTime"),
+                f"pointer.samples[{index}].clientTime",
+                0,
+                10**15,
+            ),
+        })
+
+    return {
+        "id": pointer_id,
+        "eventId": short_string(supplied.get("eventId"), "pointer.eventId"),
+        "samples": validated,
+    }
+
+
 def management_client(event):
     context = event["requestContext"]
     endpoint = f"https://{context['domainName']}/{context['stage']}"
@@ -200,7 +239,11 @@ def handle_join(event):
             "expires_at": int(time.time()) + CONNECTION_TTL_SECONDS,
         }
     )
-    payload = {"type": "snapshot", "state": state_payload(get_state())}
+    payload = {
+        "type": "snapshot",
+        "state": state_payload(get_state()),
+        "capabilities": {"pointerBatches": True},
+    }
     send(management_client(event), connection_id, payload)
     return response()
 
@@ -263,7 +306,11 @@ def handle_replace(event):
 
 
 def handle_pointer(event, message):
-    broadcast(event, {"type": "pointer", "pointer": validate_pointer(message)})
+    supplied = message.get("pointer") or {}
+    if "samples" in supplied:
+        broadcast(event, {"type": "pointer_batch", "pointer": validate_pointer_batch(message)})
+    else:
+        broadcast(event, {"type": "pointer", "pointer": validate_pointer(message)})
     return response()
 
 
